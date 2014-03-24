@@ -599,7 +599,7 @@ __global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potF
     if (faceA < nFaces) {
 		int nPairs = nPotFace[faceA];
 		if(j < nPairs) {
-			faceB = potFaceFace[faceA * maxSize + j];
+			int faceB = potFaceFace[faceA * maxSize + j];
 			
 			// doe berekeningen hier
 		}
@@ -607,47 +607,35 @@ __global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potF
 }
 
 void Collisions::breakDown(const BVH* bvh, const Vector& displacement){  
-	
-	int N = 3;
-    size_t size = N * sizeof(int);
 
     // Allocate input vectors h_A and h_B in host memory
-    int* h_A = (int*)malloc(size);
-    int* h_B = (int*)malloc(size);
-	int* h_C = (int*)malloc(size);
-
-    // Initialize input vectors
-    for(int i=0; i<3; i++) {
-		h_A[i] = 2*i;
-		h_B[i] = 3*(i+1);
-	}
+    int* vfOut = (int*)malloc(nVertices*maxSize*sizeof(int));
+    int* eeOut = (int*)malloc(nEdges*maxSize*sizeof(int));
 
     // Allocate vectors in device memory
-    int* d_A;
-    cudaMalloc(&d_A, size);
-    int* d_B;
-    cudaMalloc(&d_B, size);
-    int* d_C;
-    cudaMalloc(&d_C, size);
+    int* nPotFace;
+    cudaMalloc(&nPotFace, nFaces*sizeof(int));
+    int* potFaceFace;
+    cudaMalloc(&potFaceFace, nFaces*maxSize*sizeof(int));
+	
+	int* VFOutput;
+    cudaMalloc(&VFOutput, nVertices*maxSize*sizeof(int));
+	int* EEOutput;
+    cudaMalloc(&EEOutput, nEdges*maxSize*sizeof(int));
 
     // Copy vectors from host memory to device memory
-    cudaMemcpy(d_A, h_A, size, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_B, h_B, size, cudaMemcpyHostToDevice);
-
-	cudaPrintfInit();
+    cudaMemcpy(nPotFace, nPotentialFaces, nFaces*sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(potFaceFace, potentialFaceFace, nFaces*maxSize*sizeof(int), cudaMemcpyHostToDevice);
 	
     // Invoke kernel
-    int threadsPerBlock = 2;
+    int threadsPerBlock = 2; // deze moeten nog verbeterd
     int blocksPerGrid = N;
-    breakDownDeel1<<<blocksPerGrid, threadsPerBlock>>>(d_A, d_B, d_C, N);
+    breakDownDeel1<<<blocksPerGrid, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, VFOutput, EEOutput);
 
     // Copy result from device memory to host memory
     // h_C contains the result in host memory
-    cudaMemcpy(h_C, d_C, size, cudaMemcpyDeviceToHost);
-	
-	int threadsPerBlock = 1;
-	int blocksPerGrid = nFaces;
-	breakDownDeel1<<<blocksPerGrid, threadsPerBlock>>>(this, bvh, displacement, nFaces);
+    cudaMemcpy(vfOut, VFOutput, nVertices*maxSize*sizeof(int), cudaMemcpyDeviceToHost);
+	cudaMemcpy(eeOut, EEOutput, nEdges*maxSize*sizeof(int), cudaMemcpyDeviceToHost);
 }
 
 /*Not used anymore*/
