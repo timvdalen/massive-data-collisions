@@ -592,87 +592,59 @@ void Collisions::storeEdgeEdgeResult(int e1, int e2){
 }
 
 
-__global__ void breakDownDeel1(Collisions* c, const BVH* bvh, const Vector& displacement, int nFaces)
+__global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potFaceFace, int* VFOutput, int* EEOutput)
 {
 	int faceA = (blockDim.x * blockIdx.x + threadIdx.x);
-	if (faceA < nFaces){
-		int nPairs = c->nPotentialFaces[faceA];
-
-		for(int j=0;j<nPairs;j++){
-			int faceB = c->potentialFaceFace[faceA * c->maxSize + j];
-
-			/*Face-face -> vertex-face*/
-			int* vertices = bvh->mesh->faces[faceA].vertices;
-			int* edgesA    = bvh->mesh->faces[faceA].edges;
-			int* edgesB    = bvh->mesh->faces[faceB].edges;
-
-			for(int vertex=0;vertex<3;vertex++){
-				//Each vertex in faceA can collide with faceB. Since the
-				//face-face pairs are symmetric, we don't need to create pairs
-				//for each vertex in faceB with faceA.
-
-				//Check if bounding-box of displaced vertex and displaced face
-				//do intersect. (additional pruning of the results)
-
-				Box vertexBox;
-				Vector v0 = bvh->mesh->vertices[vertices[vertex]];
-				vertexBox.addPoint(v0);
-				Vector p1;
-				vectorAdd(p1, v0, displacement);
-				vertexBox.addPoint(p1);
-
-				if(vertexBox.intersects(bvh->boxes[bvh->faceNodeMap[faceB]])){
-					c->storeVertexFaceResult(vertices[vertex], faceB);
-				}
-			} 
-
-			for(int edgeA=0;edgeA<3;edgeA++){
-				/*Create for each edge a displaced bounding-box and test these
-				boxes for intersections. (additional pruning of the results)*/
-				int* verticesEdgeA = bvh->mesh->edges[edgesA[edgeA]].vertices;
-
-				Box edgeBoxA;
-
-				Vector v0 = bvh->mesh->vertices[verticesEdgeA[0]];
-				Vector v1 = bvh->mesh->vertices[verticesEdgeA[1]];
-
-				edgeBoxA.addPoint(v0);
-				edgeBoxA.addPoint(v1);
-
-				Vector p1, p2;
-				vectorAdd(p1, v0, displacement);
-				vectorAdd(p2, v1, displacement);
-				edgeBoxA.addPoint(p1);
-				edgeBoxA.addPoint(p2);
-
-				for(int edgeB=0;edgeB<3;edgeB++){
-					if(edgesA[edgeA] < edgesB[edgeB]){
-						int* verticesEdgeB = bvh->mesh->edges[edgesB[edgeB]].vertices;
-
-						Box edgeBoxB;
-						Vector v2 = bvh->mesh->vertices[verticesEdgeB[0]];
-						Vector v3 = bvh->mesh->vertices[verticesEdgeB[1]];
-
-						edgeBoxB.addPoint(v2);
-						edgeBoxB.addPoint(v3);
-
-						vectorAdd(p1, v2, displacement);
-						vectorAdd(p2, v3, displacement);
-
-						edgeBoxB.addPoint(p1);
-						edgeBoxB.addPoint(p2);
-
-						if(edgeBoxA.intersects(edgeBoxB)){
-							c->storeEdgeEdgeResult(edgesA[edgeA], edgesB[edgeB]);
-						}
-					}
-				}
-			}
+	int j = (blockDim.y * blockIdx.y + threadIdx.y);
+    if (faceA < nFaces) {
+		int nPairs = nPotFace[faceA];
+		if(j < nPairs) {
+			faceB = potFaceFace[faceA * maxSize + j];
+			
+			// doe berekeningen hier
 		}
-	}
+	}   
 }
 
 void Collisions::breakDown(const BVH* bvh, const Vector& displacement){  
+	
+	int N = 3;
+    size_t size = N * sizeof(int);
+
+    // Allocate input vectors h_A and h_B in host memory
+    int* h_A = (int*)malloc(size);
+    int* h_B = (int*)malloc(size);
+	int* h_C = (int*)malloc(size);
+
+    // Initialize input vectors
+    for(int i=0; i<3; i++) {
+		h_A[i] = 2*i;
+		h_B[i] = 3*(i+1);
+	}
+
+    // Allocate vectors in device memory
+    int* d_A;
+    cudaMalloc(&d_A, size);
+    int* d_B;
+    cudaMalloc(&d_B, size);
+    int* d_C;
+    cudaMalloc(&d_C, size);
+
+    // Copy vectors from host memory to device memory
+    cudaMemcpy(d_A, h_A, size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_B, h_B, size, cudaMemcpyHostToDevice);
+
+	cudaPrintfInit();
+	
+    // Invoke kernel
+    int threadsPerBlock = 2;
+    int blocksPerGrid = N;
+    breakDownDeel1<<<blocksPerGrid, threadsPerBlock>>>(d_A, d_B, d_C, N);
+
+    // Copy result from device memory to host memory
+    // h_C contains the result in host memory
+    cudaMemcpy(h_C, d_C, size, cudaMemcpyDeviceToHost);
+	
 	int threadsPerBlock = 1;
 	int blocksPerGrid = nFaces;
 	breakDownDeel1<<<blocksPerGrid, threadsPerBlock>>>(this, bvh, displacement, nFaces);
