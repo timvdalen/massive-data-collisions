@@ -662,7 +662,7 @@ __global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potF
 						edgeBoxB.addPoint(p2);
 
 						if(edgeBoxA.intersects(edgeBoxB)){
-							storeEdgeEdgeResult(edgesA[edgeA], edgesB[edgeB]);
+							storeEdgeEdgeResult(localeA[edgeA], localeB[edgeB]);
 						}
 					}
 				}
@@ -684,7 +684,7 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     cudaMalloc(&potFaceFace, nFaces*maxSize*sizeof(int));
 	
 	int* fnMap;
-	cudaMallow(&fnMap, nFaces*sizeof(int));
+	cudaMalloc(&fnMap, nFaces*sizeof(int));
 	Vertex* vCuda;
 	cudaMalloc(&vCuda, nVertices*sizeof(Vertex));
 	Edge* eCuda;
@@ -711,7 +711,7 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     // Invoke kernel
     int threadsPerBlock = maxSize;	// deze moeten nog verbeterd
     int blocksPerGrid = nFaces;		// allebei dus
-    breakDownDeel1<<<blocksPerGrid, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, vCuda, eCuda, fCuda, VFOutput, EEOutput);
+    breakDownDeel1<<<blocksPerGrid, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, fnMap, vCuda, eCuda, fCuda, bCuda, VFOutput, EEOutput);
 
     // Copy result from device memory to host memory
     // h_C contains the result in host memory
