@@ -675,7 +675,7 @@ __global__ void breakDownDeel1(Collisions* c, const BVH* bvh, const Vector& disp
 void Collisions::breakDown(const BVH* bvh, const Vector& displacement){  
 	int threadsPerBlock = 1;
 	int blocksPerGrid = nFaces;
-	breakDownDeel1<<<blocksPerGrid, threadsPerBlock>>>(this, bhv, displacement, nFaces);
+	breakDownDeel1<<<blocksPerGrid, threadsPerBlock>>>(this, bvh, displacement, nFaces);
 }
 
 /*Not used anymore*/
