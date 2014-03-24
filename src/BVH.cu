@@ -498,9 +498,13 @@ void BVH::checkCollisions(Collisions* c, const Vector& displacement){
 
   unsigned t0=clock();
   c->breakDown(this, displacement);
-  unsigned elapsed=(clock()-t0)/(CLOCKS_PER_SEC/1000);
-  
-  printf("%f.1 ms elapsed\n", elapsed);
+  unsigned elapsed=(clock()-t0);
+ 
+  float ticks_per_ms = CLOCKS_PER_SEC/1000.0;
+
+  float elapsed_ms = elapsed/ticks_per_ms;
+
+  printf("%f ms elapsed\n", elapsed_ms);
 }
 
 Collisions::Collisions(const BVH* b, int max){
