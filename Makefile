@@ -3,8 +3,8 @@ PROJECT_NAME	= collision
 SHARED_PATH	= ./shared
 
 #Add modules to project. Each module is a separate (sub)directory
-MODULES := src src/QT
-QT_MOC_DIR := include/QT
+MODULES := src
+QT_MOC_DIR := 
 
 #Define execuatable name and library name/location 
 EXE		= collision
@@ -14,17 +14,13 @@ all: _main
 
 #Include other paths
 INCLUDES         = -I./include
-INCLUDES        += -I/usr/include/qt4
-INCLUDES        += -I/usr/include/qt4/QtGui
-INCLUDES        += -I/usr/include/qt4/QtOpenGL
 
 #Include some other shared libraries
-LIBS	+= -lpthread -lQtCore -lQtGui -lQtOpenGL
+LIBS	+= -lpthread 
 
 CUDA	= 1
 DEBUG   = 0
 
-MOC4			= moc
 ifeq ($(DEBUG),1)
 STRIP_FLAGS		= 
 COMPILATION_FLAGS       = -O0 -g -D_DEBUG
@@ -172,5 +168,3 @@ endif
 clean_dep: clean
 	rm -f $(DEPS)
 
-#Forces make to create the moc files
-qt:	$(MOCS) all
