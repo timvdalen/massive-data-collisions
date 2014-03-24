@@ -1,7 +1,17 @@
 #include "BVH.hpp"
 
 #include <iostream>
-#include <cstdio>
+
+void printMetrics(const Collisions* collisions){
+	int sumVertexFace = 0;
+	int sumEdgeEdge = 0;
+	for(int i=0; i < collisions->nVertices; i++){
+		sumVertexFace += collisions->nPotentialVertexFaces[i];
+		sumEdgeEdge += collisions->nPotentialEdgeEdges[i];
+	}
+
+	std::cout << "Total number of vertex-face: " << sumVertexFace << std::endl << "Total number of edge-edge: " << sumEdgeEdge << std::endl;
+}
 
 int main(int argc, char** argv){
 	if(argc == 2){
@@ -13,21 +23,10 @@ int main(int argc, char** argv){
 		Vector displ;
 		displ.x = displ.y = displ.z = 0;
 
-		int sum = 0;
-		int arr_length = collisions->nVertices;
-		for(int i=0; i < arr_length; i++){
-			sum += collisions->nPotentialVertexFaces[i];
-		}
-		printf("Before: %d, %d\n", arr_length, sum);
-
 		bvh->checkCollisions(collisions, displ);
 
-		sum = 0;
-		for(int i=0; i < arr_length; i++){
-			sum += collisions->nPotentialVertexFaces[i];
-		}
-		printf("After:%d, %d\n", arr_length, sum);
-	
+		printMetrics(collisions);
+
 		delete collisions;
 		delete bvh;
 	}else{
