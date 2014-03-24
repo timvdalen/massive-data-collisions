@@ -592,15 +592,14 @@ void Collisions::storeEdgeEdgeResult(int e1, int e2){
 }
 
 
-__global__ void breakDownDeel1(Collisions* c, BHV* bhv, int nFaces)
+__global__ void breakDownDeel1(Collisions* c, const BVH* bvh, const Vector& displacement, int nFaces)
 {
 	int faceA = (blockDim.x * blockIdx.x + threadIdx.x);
-	cuPrintf("blockDim: %d, blockIdx: %d, threadIdx: %d, i: %d\n", blockDim.x, blockIdx.x, threadIdx.x, i);
 	if (faceA < nFaces){
 		int nPairs = c->nPotentialFaces[faceA];
 
 		for(int j=0;j<nPairs;j++){
-			int faceB = c->potentialFaceFace[faceA * maxSize + j];
+			int faceB = c->potentialFaceFace[faceA * c->maxSize + j];
 
 			/*Face-face -> vertex-face*/
 			int* vertices = bvh->mesh->faces[faceA].vertices;
@@ -676,7 +675,7 @@ __global__ void breakDownDeel1(Collisions* c, BHV* bhv, int nFaces)
 void Collisions::breakDown(const BVH* bvh, const Vector& displacement){  
 	int threadsPerBlock = 1;
 	int blocksPerGrid = nFaces;
-	VecAdd<<<blocksPerGrid, threadsPerBlock>>>(this, bhv, nFaces);
+	breakDownDeel1<<<blocksPerGrid, threadsPerBlock>>>(this, bhv, displacement, nFaces);
 }
 
 /*Not used anymore*/
