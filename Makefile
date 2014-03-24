@@ -131,9 +131,9 @@ touchdep: $(DEPS)
 
 #Rule for linking main executable
 # $(CUBIN) #$(CUPTX) #$(ASM)
-ifeq ($(DEBUG),1)
+ifeq ($(CUDA),1)
 _main:	$(DEPS) $(OBJ) touchdep
-	$(CC) -o $(EXE) $(COBJ) $(LIBS)
+	$(NVCC) -o $(EXE) $(COBJ) $(LIBS)
 else
 _main:	$(DEPS) $(OBJ) touchdep
 	$(CC) -o $(EXE) $(COBJ) $(LIBS) 
