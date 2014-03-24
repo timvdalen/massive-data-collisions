@@ -601,7 +601,7 @@ void Collisions::storeEdgeEdgeResult(int e1, int e2){
 }
 
 
-__global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potFaceFace, Vertex* vertices, Edge* edges, Face* faces, int* VFOutput, int* EEOutput)
+__global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potFaceFace, int* fnMap, Vertex* vertices, Edge* edges, Face* faces, Box* boxes, int* VFOutput, int* EEOutput)
 {
 	int faceA = (blockDim.x * blockIdx.x + threadIdx.x);
 	int j = (blockDim.y * blockIdx.y + threadIdx.y);
@@ -610,7 +610,63 @@ __global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potF
 		if(j < nPairs) {
 			int faceB = potFaceFace[faceA * maxSize + j];
 			
-			// doe berekeningen hier
+			int* localv = faces[faceA].vertices;
+			int* localeA = faces[faceA].edges;
+			int* localeB = faces[faceB].edges;
+			
+			for(int vertex=0; vertex<3; vertex++) {
+				Box vertexBox;
+				Vector v0 = vertices[localv[vertex]];
+				vertexBox.addPoint(v0);
+				Vector p1;
+				vectorAdd(p1, v0, displacement);
+				vertexBox.addPoint(p1);
+
+				if(vertexBox.intersects(boxes[fnMap[faceB]])){
+					storeVertexFaceResult(localv[vertex], faceB);
+				}
+			}
+			
+			for(int edgeA=0; edgeA<3; edgeA++) {
+				int* verticesEdgeA = edges[localeA[edgeA]].vertices;
+	
+				Box edgeBoxA;
+
+				Vector v0 = vertices[verticesEdgeA[0]];
+				Vector v1 = vertices[verticesEdgeA[1]];
+
+				edgeBoxA.addPoint(v0);
+				edgeBoxA.addPoint(v1);
+
+				Vector p1, p2;
+				vectorAdd(p1, v0, displacement);
+				vectorAdd(p2, v1, displacement);
+				edgeBoxA.addPoint(p1);
+				edgeBoxA.addPoint(p2);
+	
+				for(int edgeB=0;edgeB<3;edgeB++){
+					if(localeA[edgeA] < localeB[edgeB]){
+						int* verticesEdgeB = edges[localeB[edgeB]].vertices;
+
+						Box edgeBoxB;
+						Vector v2 = vertices[verticesEdgeB[0]];
+						Vector v3 = vertices[verticesEdgeB[1]];
+
+						edgeBoxB.addPoint(v2);
+						edgeBoxB.addPoint(v3);
+	    
+						vectorAdd(p1, v2, displacement);
+						vectorAdd(p2, v3, displacement);
+
+						edgeBoxB.addPoint(p1);
+						edgeBoxB.addPoint(p2);
+
+						if(edgeBoxA.intersects(edgeBoxB)){
+							storeEdgeEdgeResult(edgesA[edgeA], edgesB[edgeB]);
+						}
+					}
+				}
+			}
 		}
 	}   
 }
@@ -627,12 +683,16 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     int* potFaceFace;
     cudaMalloc(&potFaceFace, nFaces*maxSize*sizeof(int));
 	
+	int* fnMap;
+	cudaMallow(&fnMap, nFaces*sizeof(int));
 	Vertex* vCuda;
 	cudaMalloc(&vCuda, nVertices*sizeof(Vertex));
-	Edge*   eCuda;
+	Edge* eCuda;
 	cudaMalloc(&eCuda, nEdges*sizeof(Edge));
-	Face*   fCuda;
+	Face* fCuda;
 	cudaMalloc(&fCuda, nFaces*sizeof(Face));
+	Box* bCuda;
+	cudaMalloc(&bCuda, bvh->nNodes*sizeof(Box));
 	
 	int* VFOutput;
     cudaMalloc(&VFOutput, nVertices*maxSize*sizeof(int));
@@ -642,9 +702,11 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     // Copy vectors from host memory to device memory
     cudaMemcpy(nPotFace, nPotentialFaces, nFaces*sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(potFaceFace, potentialFaceFace, nFaces*maxSize*sizeof(int), cudaMemcpyHostToDevice);
+	cudaMemcpy(fnMap, bvh->faceNodeMap, nFaces*sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(vCuda, bvh->mesh->vertices, nVertices*sizeof(Vertex), cudaMemcpyHostToDevice);
 	cudaMemcpy(eCuda, bvh->mesh->edges, nEdges*sizeof(Edge), cudaMemcpyHostToDevice);
 	cudaMemcpy(fCuda, bvh->mesh->faces, nFaces*sizeof(Face), cudaMemcpyHostToDevice);
+	cudaMemcpy(bCuda, bvh->boxes, bvh->nNodes*sizeof(Box), cudaMemcpyHostToDevice);
 	
     // Invoke kernel
     int threadsPerBlock = maxSize;	// deze moeten nog verbeterd
