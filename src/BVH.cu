@@ -592,7 +592,7 @@ void Collisions::storeEdgeEdgeResult(int e1, int e2){
 }
 
 
-__global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potFaceFace, int* VFOutput, int* EEOutput)
+__global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potFaceFace, Vertex* vertices, Edge* edges, Face* faces, int* VFOutput, int* EEOutput)
 {
 	int faceA = (blockDim.x * blockIdx.x + threadIdx.x);
 	int j = (blockDim.y * blockIdx.y + threadIdx.y);
@@ -618,6 +618,13 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     int* potFaceFace;
     cudaMalloc(&potFaceFace, nFaces*maxSize*sizeof(int));
 	
+	Vertex* vCuda;
+	cudaMalloc(&vCuda, nVertices*sizeof(Vertex));
+	Edge*   eCuda;
+	cudaMalloc(&eCuda, nEdges*sizeof(Edge));
+	Face*   fCuda;
+	cudaMalloc(&fCuda, nFaces*sizeof(Face));
+	
 	int* VFOutput;
     cudaMalloc(&VFOutput, nVertices*maxSize*sizeof(int));
 	int* EEOutput;
@@ -626,11 +633,14 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     // Copy vectors from host memory to device memory
     cudaMemcpy(nPotFace, nPotentialFaces, nFaces*sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(potFaceFace, potentialFaceFace, nFaces*maxSize*sizeof(int), cudaMemcpyHostToDevice);
+	cudaMemcpy(vCuda, bvh->mesh->vertices, nVertices*sizeof(Vertex), cudaMemcpyHostToDevice);
+	cudaMemcpy(eCuda, bvh->mesh->edges, nEdges*sizeof(Edge), cudaMemcpyHostToDevice);
+	cudaMemcpy(fCuda, bvh->mesh->faces, nFaces*sizeof(Face), cudaMemcpyHostToDevice);
 	
     // Invoke kernel
     int threadsPerBlock = 2; // deze moeten nog verbeterd
     int blocksPerGrid = N;
-    breakDownDeel1<<<blocksPerGrid, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, VFOutput, EEOutput);
+    breakDownDeel1<<<blocksPerGrid, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, vCuda, eCuda, fCuda, VFOutput, EEOutput);
 
     // Copy result from device memory to host memory
     // h_C contains the result in host memory
