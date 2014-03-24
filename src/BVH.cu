@@ -5,6 +5,7 @@
 #include <string.h>
 #include <cstdlib>
 #include <math.h>
+#include <ctime>
 
 void vectorDot(float& r, const Vector& a, const Vector& b){
   r = a.x * b.x + a.y * b.y + a.z * b.z;
@@ -495,7 +496,11 @@ void BVH::checkCollisions(Collisions* c, const Vector& displacement){
   
   checkFaceFaceCollisions(c);
 
+  unsigned t0=clock();
   c->breakDown(this, displacement);
+  unsigned elapsed=(clock()-t0)/(CLOCKS_PER_SEC/1000);
+  
+  printf("%f.1 ms elapsed\n", elapsed);
 }
 
 Collisions::Collisions(const BVH* b, int max){
