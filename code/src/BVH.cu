@@ -1,4 +1,4 @@
-#include "BVH.cuh"
+#include "BVH.hpp"
 #include <iostream>
 #include <fstream>
 #include <algorithm>
@@ -6,7 +6,7 @@
 #include <cstdlib>
 #include <math.h>
 #include <ctime>
-#include "cuPrintf.cuh"
+#include "cuPrintf.itiscu"
 
 void vectorDot(float& r, const Vector& a, const Vector& b){
   r = a.x * b.x + a.y * b.y + a.z * b.z;

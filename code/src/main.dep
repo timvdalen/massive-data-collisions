@@ -89,7 +89,7 @@ src/main.dep src/main.o: src/main.cu \
     /usr/local/cuda-5.0/bin/../include/texture_indirect_functions.h \
     /usr/local/cuda-5.0/bin/../include/surface_indirect_functions.h \
     /usr/local/cuda-5.0/bin/../include/device_launch_parameters.h \
-    ./include/BVH.cuh \
+    ./include/BVH.hpp \
     /usr/include/c++/4.6/iostream \
     /usr/include/c++/4.6/ostream \
     /usr/include/c++/4.6/ios \
