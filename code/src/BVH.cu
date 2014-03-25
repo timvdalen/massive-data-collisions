@@ -731,9 +731,11 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
 	cudaMemcpy(bCuda, bvh->boxes, bvh->nNodes*sizeof(Box), cudaMemcpyHostToDevice);
 	
     // Invoke kernel
-    int threadsPerBlock = 1; // deze moeten nog verbeterd
-    int blocksPerGrid = nFaces;//nFaces;		// allebei dus
-    breakDownDeel1<<<blocksPerGrid, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, nVFOutput, nEEOutput, disp, fnMap, vCuda, eCuda, fCuda, bCuda, VFOutput, EEOutput);
+	dim3 threadsPerBlock(8, 8);  // 64 threads
+	dim3 numBlocks(nFaces/threadsPerBlock.x, maxSize/threadsPerBlock.y); 
+    //int threadsPerBlock = 10;//maxSize;	// deze moeten nog verbeterd
+    //int blocksPerGrid = 10;//nFaces;		// allebei dus
+    breakDownDeel1<<<numBlocks, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, nVFOutput, nEEOutput, disp, fnMap, vCuda, eCuda, fCuda, bCuda, VFOutput, EEOutput);
 
     // Copy result from device memory to host memory
     // Output vectors contain the result in host memory
