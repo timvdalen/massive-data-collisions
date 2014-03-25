@@ -7,6 +7,7 @@
 #include <math.h>
 #include <ctime>
 #include "cuPrintf.itiscu"
+#include <sys/time.h>
 
 void vectorDot(float& r, const Vector& a, const Vector& b){
   r = a.x * b.x + a.y * b.y + a.z * b.z;
@@ -497,15 +498,17 @@ void BVH::checkCollisions(Collisions* c, const Vector& displacement){
   
   checkFaceFaceCollisions(c);
 
-  unsigned t0=clock();
+  struct timeval tv;
+
+  gettimeofday(&tv, NULL);
+  unsigned long long time_before = (unsigned long long)(tv.tv_sec) * 1000 + (unsigned long long)(tv.tv_usec) / 1000;
+
   c->breakDown(this, displacement);
-  unsigned elapsed=(clock()-t0);
- 
-  float ticks_per_ms = CLOCKS_PER_SEC/1000.0;
 
-  float elapsed_ms = elapsed/ticks_per_ms;
+   gettimeofday(&tv, NULL);
+  unsigned long long time_after = (unsigned long long)(tv.tv_sec) * 1000 + (unsigned long long)(tv.tv_usec) / 1000;
 
-  printf("%f ms elapsed\n", elapsed_ms);
+  printf("%llu ms elapsed\n", time_after - time_before);
 }
 
 Collisions::Collisions(const BVH* b, int max){
@@ -606,9 +609,9 @@ __global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potF
 {
 	int faceA = (blockDim.x * blockIdx.x + threadIdx.x);
 	int j = (blockDim.y * blockIdx.y + threadIdx.y);
-	cuPrintf("blockDim.x: %d, blockIdx.x: %d, threadIdx.x: %d\n", blockDim.x, blockIdx.x, threadIdx.x);
-	cuPrintf("blockDim.y: %d, blockIdx.y : %d, threadIdx.y : %d\n", blockDim.y, blockIdx.y, threadIdx.y);
-	cuPrintf("faceA : %d, j : %d\n", faceA, j);
+	//cuPrintf("blockDim.x: %d, blockIdx.x: %d, threadIdx.x: %d\n", blockDim.x, blockIdx.x, threadIdx.x);
+	//cuPrintf("blockDim.y: %d, blockIdx.y : %d, threadIdx.y : %d\n", blockDim.y, blockIdx.y, threadIdx.y);
+	//cuPrintf("faceA : %d, j : %d\n", faceA, j);
     if (faceA < nFaces) {
 		int nPairs = nPotFace[faceA];
 		if(j < nPairs) {
@@ -728,8 +731,8 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
 	cudaMemcpy(bCuda, bvh->boxes, bvh->nNodes*sizeof(Box), cudaMemcpyHostToDevice);
 	
     // Invoke kernel
-    int threadsPerBlock = 10;//maxSize;	// deze moeten nog verbeterd
-    int blocksPerGrid = 10;//nFaces;		// allebei dus
+    int threadsPerBlock = 1; // deze moeten nog verbeterd
+    int blocksPerGrid = nFaces;//nFaces;		// allebei dus
     breakDownDeel1<<<blocksPerGrid, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, nVFOutput, nEEOutput, disp, fnMap, vCuda, eCuda, fCuda, bCuda, VFOutput, EEOutput);
 
     // Copy result from device memory to host memory

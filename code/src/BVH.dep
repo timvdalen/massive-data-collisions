@@ -185,4 +185,5 @@ src/BVH.dep src/BVH.o: src/BVH.cu \
     /usr/include/c++/4.6/bits/stl_construct.h \
     /usr/include/c++/4.6/ctime \
     src/cuPrintf.itiscu \
-    ./include/cuPrintf.hpp
+    ./include/cuPrintf.hpp \
+    /usr/include/x86_64-linux-gnu/sys/time.h

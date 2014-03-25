@@ -38,7 +38,7 @@ endif
 #Compiler flags
 # CCFLAGS := $(INCLUDES)  -Werror $(COMPILATION_FLAGS) $(STRIP_FLAGS) -DUNIX $(GPU) -D_REENTRANT -ansi -pedantic $(SSE2) $(BENCHMARK) -Wno-long-long -DNOISE
 
-CCFLAGS := $(INCLUDES) --compiler-options '-Wall -Werror $(COMPILATION_FLAGS) $(STRIP_FLAGS) -DUNIX $(GPU) '
+CCFLAGS := $(INCLUDES) --compiler-options '-Wall -Werror  $(COMPILATION_FLAGS) $(STRIP_FLAGS) -DUNIX $(GPU) '
 
 
 #CUDA Compiler flags
