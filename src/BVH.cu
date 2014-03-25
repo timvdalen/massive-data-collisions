@@ -601,7 +601,7 @@ void Collisions::storeEdgeEdgeResult(int e1, int e2){
 }
 
 
-__global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potFaceFace, int* fnMap, Vertex* vertices, Edge* edges, Face* faces, Box* boxes, int* VFOutput, int* EEOutput)
+__global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potFaceFace, int* nVFOutput, int* nEEOutput, Vector* displacement, int* fnMap, Vertex* vertices, Edge* edges, Face* faces, Box* boxes)
 {
 	int faceA = (blockDim.x * blockIdx.x + threadIdx.x);
 	int j = (blockDim.y * blockIdx.y + threadIdx.y);
@@ -623,7 +623,11 @@ __global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potF
 				vertexBox.addPoint(p1);
 
 				if(vertexBox.intersects(boxes[fnMap[faceB]])){
-					storeVertexFaceResult(localv[vertex], faceB);
+					int index = atomicAdd(nVFOutput[localv[vertex]],1);
+					
+					if(index < maxSize) {
+						VFOutput[localv[vertex]*maxSize + index] = faceB;
+					}
 				}
 			}
 			
@@ -662,7 +666,11 @@ __global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potF
 						edgeBoxB.addPoint(p2);
 
 						if(edgeBoxA.intersects(edgeBoxB)){
-							storeEdgeEdgeResult(localeA[edgeA], localeB[edgeB]);
+							int index = atomicAdd(&nEEOutput[localeA[edgeA]],1);
+							
+							if(index < maxSize) {
+								EEOutput[localeA[edgeA]*maxSize + index] = localeB[edgeB];
+							}
 						}
 					}
 				}
@@ -673,15 +681,13 @@ __global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potF
 
 void Collisions::breakDown(const BVH* bvh, const Vector& displacement){  
 
-    // Allocate input vectors h_A and h_B in host memory
-    int* vfOut = (int*)malloc(nVertices*maxSize*sizeof(int));
-    int* eeOut = (int*)malloc(nEdges*maxSize*sizeof(int));
-
     // Allocate vectors in device memory
     int* nPotFace;
     cudaMalloc(&nPotFace, nFaces*sizeof(int));
     int* potFaceFace;
     cudaMalloc(&potFaceFace, nFaces*maxSize*sizeof(int));
+	Vector* disp;
+	cudaMalloc(&displacement, sizeof(Vector));
 	
 	int* fnMap;
 	cudaMalloc(&fnMap, nFaces*sizeof(int));
@@ -696,12 +702,23 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
 	
 	int* VFOutput;
     cudaMalloc(&VFOutput, nVertices*maxSize*sizeof(int));
+	int* nVFOutput;
+	cudaMalloc(&nVFOutput, nVertices*sizeof(int));
 	int* EEOutput;
     cudaMalloc(&EEOutput, nEdges*maxSize*sizeof(int));
+	int* nEEOutput;
+	cudaMalloc(&nEEOutput, nEdges*sizeof(int));
+	
+	bool* semVF;
+	cudaMalloc
+	bool* semEE;
 
     // Copy vectors from host memory to device memory
     cudaMemcpy(nPotFace, nPotentialFaces, nFaces*sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(potFaceFace, potentialFaceFace, nFaces*maxSize*sizeof(int), cudaMemcpyHostToDevice);
+	cudaMemcpy(nVFOutput, nPotentialVertexFaces, nVertices*sizeof(int), cudaMemcpyHostToDevice);
+	cudaMemcpy(nEEOutput, nPotentialEdgeEdges, nEdges*sizeof(int), cudaMemcpyHostToDevice);
+	cudaMemcpy(disp, displacement, sizeof(Vector), cudaMemcpyHostToDevice);
 	cudaMemcpy(fnMap, bvh->faceNodeMap, nFaces*sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(vCuda, bvh->mesh->vertices, nVertices*sizeof(Vertex), cudaMemcpyHostToDevice);
 	cudaMemcpy(eCuda, bvh->mesh->edges, nEdges*sizeof(Edge), cudaMemcpyHostToDevice);
@@ -711,12 +728,14 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     // Invoke kernel
     int threadsPerBlock = maxSize;	// deze moeten nog verbeterd
     int blocksPerGrid = nFaces;		// allebei dus
-    breakDownDeel1<<<blocksPerGrid, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, fnMap, vCuda, eCuda, fCuda, bCuda, VFOutput, EEOutput);
+    breakDownDeel1<<<blocksPerGrid, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, nVFOutput, nEEOutput, disp, fnMap, vCuda, eCuda, fCuda, bCuda);
 
     // Copy result from device memory to host memory
-    // h_C contains the result in host memory
-    cudaMemcpy(vfOut, VFOutput, nVertices*maxSize*sizeof(int), cudaMemcpyDeviceToHost);
-	cudaMemcpy(eeOut, EEOutput, nEdges*maxSize*sizeof(int), cudaMemcpyDeviceToHost);
+    // Output vectors contain the result in host memory
+    cudaMemcpy(potentialVertexFace, VFOutput, nVertices*maxSize*sizeof(int), cudaMemcpyDeviceToHost);
+	cudaMemcpy(nPotentialVertexFaces, nVFOutput, nVertices*sizeof(int), cudaMemcpyDeviceToHost);
+	cudaMemcpy(potentialEdgeEdge, EEOutput, nEdges*maxSize*sizeof(int), cudaMemcpyDeviceToHost);
+	cudaMemcpy(nPotentialEdgeEdges, nEEOutput, nEdges*sizeof(int), cudaMemcpyDeviceToHost);
 }
 
 /*Not used anymore*/
