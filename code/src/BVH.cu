@@ -683,6 +683,8 @@ __global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potF
 
 void Collisions::breakDown(const BVH* bvh, const Vector& displacement){  
 
+	cudaPrintfInit();
+
     // Allocate vectors in device memory
     int* nPotFace;
     cudaMalloc(&nPotFace, nFaces*sizeof(int));
@@ -734,6 +736,23 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
 	cudaMemcpy(nPotentialVertexFaces, nVFOutput, nVertices*sizeof(int), cudaMemcpyDeviceToHost);
 	cudaMemcpy(potentialEdgeEdge, EEOutput, nEdges*maxSize*sizeof(int), cudaMemcpyDeviceToHost);
 	cudaMemcpy(nPotentialEdgeEdges, nEEOutput, nEdges*sizeof(int), cudaMemcpyDeviceToHost);
+	
+	// free device memory
+	cudaFree(nPotFace);
+	cudaFree(potFaceFace);
+	cudaFree(disp);
+	cudaFree(fnMap);
+	cudaFree(vCuda);
+	cudaFree(eCuda);
+	cudaFree(fCuda);
+	cudaFree(bCuda);
+	cudaFree(VFOutput);
+	cudaFree(nVFOutput);
+	cudaFree(EEOutput);
+	cudaFree(nEEOutput);
+	
+	cudaPrintfDisplay();
+	cudaPrintfEnd();
 }
 
 /*Not used anymore*/
