@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <math.h>
 #include <ctime>
+#include "cuPrintf.cu"
 
 void vectorDot(float& r, const Vector& a, const Vector& b){
   r = a.x * b.x + a.y * b.y + a.z * b.z;
@@ -605,6 +606,7 @@ __global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potF
 {
 	int faceA = (blockDim.x * blockIdx.x + threadIdx.x);
 	int j = (blockDim.y * blockIdx.y + threadIdx.y);
+	cuPrintf("blockDim.x: %d, blockIdx.x: %d, threadIdx.x: %d, blockDim.y: %d, blockIdx.y : %d, threadIdx.y : %d, faceA : %d, j : %d\n", blockDim.x, blockIdx.x, threadIdx.x, blockDim.y, blockIdx.y, threadIdx.y, faceA, j);
     if (faceA < nFaces) {
 		int nPairs = nPotFace[faceA];
 		if(j < nPairs) {
@@ -714,7 +716,7 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     cudaMemcpy(potFaceFace, potentialFaceFace, nFaces*maxSize*sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(nVFOutput, nPotentialVertexFaces, nVertices*sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(nEEOutput, nPotentialEdgeEdges, nEdges*sizeof(int), cudaMemcpyHostToDevice);
-	cudaMemcpy(disp, displacement, sizeof(Vector), cudaMemcpyHostToDevice);
+	cudaMemcpy(disp, &displacement, sizeof(Vector), cudaMemcpyHostToDevice);
 	cudaMemcpy(fnMap, bvh->faceNodeMap, nFaces*sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(vCuda, bvh->mesh->vertices, nVertices*sizeof(Vertex), cudaMemcpyHostToDevice);
 	cudaMemcpy(eCuda, bvh->mesh->edges, nEdges*sizeof(Edge), cudaMemcpyHostToDevice);
