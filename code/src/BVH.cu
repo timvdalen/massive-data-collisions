@@ -623,7 +623,7 @@ __global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potF
 				vertexBox.addPoint(p1);
 
 				if(vertexBox.intersects(boxes[fnMap[faceB]])){
-					int index = atomicAdd(nVFOutput[localv[vertex]],1);
+					int index = atomicAdd(&nVFOutput[localv[vertex]],1);
 					
 					if(index < maxSize) {
 						VFOutput[localv[vertex]*maxSize + index] = faceB;
@@ -687,7 +687,7 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     int* potFaceFace;
     cudaMalloc(&potFaceFace, nFaces*maxSize*sizeof(int));
 	Vector* disp;
-	cudaMalloc(&displacement, sizeof(Vector));
+	cudaMalloc(&disp, sizeof(Vector));
 	
 	int* fnMap;
 	cudaMalloc(&fnMap, nFaces*sizeof(int));
@@ -708,10 +708,6 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     cudaMalloc(&EEOutput, nEdges*maxSize*sizeof(int));
 	int* nEEOutput;
 	cudaMalloc(&nEEOutput, nEdges*sizeof(int));
-	
-	bool* semVF;
-	cudaMalloc
-	bool* semEE;
 
     // Copy vectors from host memory to device memory
     cudaMemcpy(nPotFace, nPotentialFaces, nFaces*sizeof(int), cudaMemcpyHostToDevice);
