@@ -606,7 +606,9 @@ __global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potF
 {
 	int faceA = (blockDim.x * blockIdx.x + threadIdx.x);
 	int j = (blockDim.y * blockIdx.y + threadIdx.y);
-	cuPrintf("blockDim.x: %d, blockIdx.x: %d, threadIdx.x: %d, blockDim.y: %d, blockIdx.y : %d, threadIdx.y : %d, faceA : %d, j : %d\n", blockDim.x, blockIdx.x, threadIdx.x, blockDim.y, blockIdx.y, threadIdx.y, faceA, j);
+	cuPrintf("blockDim.x: %d, blockIdx.x: %d, threadIdx.x: %d\n", blockDim.x, blockIdx.x, threadIdx.x);
+	cuPrintf("blockDim.y: %d, blockIdx.y : %d, threadIdx.y : %d\n", blockDim.y, blockIdx.y, threadIdx.y);
+	cuPrintf("faceA : %d, j : %d\n", faceA, j);
     if (faceA < nFaces) {
 		int nPairs = nPotFace[faceA];
 		if(j < nPairs) {
@@ -726,8 +728,8 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
 	cudaMemcpy(bCuda, bvh->boxes, bvh->nNodes*sizeof(Box), cudaMemcpyHostToDevice);
 	
     // Invoke kernel
-    int threadsPerBlock = maxSize;	// deze moeten nog verbeterd
-    int blocksPerGrid = nFaces;		// allebei dus
+    int threadsPerBlock = 10;//maxSize;	// deze moeten nog verbeterd
+    int blocksPerGrid = 10;//nFaces;		// allebei dus
     breakDownDeel1<<<blocksPerGrid, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, nVFOutput, nEEOutput, disp, fnMap, vCuda, eCuda, fCuda, bCuda, VFOutput, EEOutput);
 
     // Copy result from device memory to host memory
