@@ -1,4 +1,4 @@
-#include "BVH.hpp"
+#include "BVH.cuh"
 #include <iostream>
 #include <fstream>
 #include <algorithm>
@@ -17,7 +17,7 @@ void vectorCross(Vector& r, const Vector& a, const Vector& b){
   r.z = a.x * b.y - a.y * b.x;
 }
 
-void vectorAdd(Vector& r, const Vector& a, const Vector& b){
+__host__ __device__ void vectorAdd(Vector& r, const Vector& a, const Vector& b){
   r.x = a.x + b.x;
   r.y = a.y + b.y;
   r.z = a.z + b.z;
@@ -714,7 +714,7 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     cudaMemcpy(potFaceFace, potentialFaceFace, nFaces*maxSize*sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(nVFOutput, nPotentialVertexFaces, nVertices*sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(nEEOutput, nPotentialEdgeEdges, nEdges*sizeof(int), cudaMemcpyHostToDevice);
-	cudaMemcpy(disp, displacement, sizeof(Vector), cudaMemcpyHostToDevice);
+	cudaMemcpy(disp, &displacement, sizeof(Vector), cudaMemcpyHostToDevice);
 	cudaMemcpy(fnMap, bvh->faceNodeMap, nFaces*sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(vCuda, bvh->mesh->vertices, nVertices*sizeof(Vertex), cudaMemcpyHostToDevice);
 	cudaMemcpy(eCuda, bvh->mesh->edges, nEdges*sizeof(Edge), cudaMemcpyHostToDevice);

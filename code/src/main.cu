@@ -1,4 +1,4 @@
-#include "BVH.hpp"
+#include "BVH.cuh"
 
 #include <iostream>
 

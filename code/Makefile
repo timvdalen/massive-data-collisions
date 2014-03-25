@@ -36,9 +36,9 @@ CUDA_LIBS		=
 endif
 
 #Compiler flags
-# CCFLAGS := $(INCLUDES) -Wall -Werror $(COMPILATION_FLAGS) $(STRIP_FLAGS) -DUNIX $(GPU) -D_REENTRANT -ansi -pedantic $(SSE2) $(BENCHMARK) -Wno-long-long -DNOISE
+# CCFLAGS := $(INCLUDES)  -Werror $(COMPILATION_FLAGS) $(STRIP_FLAGS) -DUNIX $(GPU) -D_REENTRANT -ansi -pedantic $(SSE2) $(BENCHMARK) -Wno-long-long -DNOISE
 
-CCFLAGS := $(INCLUDES) -Wall -Werror $(COMPILATION_FLAGS) $(STRIP_FLAGS) -DUNIX $(GPU) 
+CCFLAGS := $(INCLUDES) --compiler-options '-Wall -Werror $(COMPILATION_FLAGS) $(STRIP_FLAGS) -DUNIX $(GPU) '
 
 
 #CUDA Compiler flags
@@ -52,8 +52,8 @@ NVCCFLAGS	=
 endif
 
 #Compilers
-CC 	= g++
-CPP	= g++
+CC 	= nvcc
+CPP	= nvcc
 ifeq ($(CUDA),1)
 NVCC	= nvcc
 else

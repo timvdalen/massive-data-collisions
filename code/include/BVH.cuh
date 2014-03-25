@@ -52,11 +52,11 @@ public:
 
 class Box{
 public:
-  Box();
+  __host__ __device__ Box();
   Vector min, max;
-  bool intersects(const Box& b)const;
-  void addPoint(Vector& p);
-  void reset();
+  __host__ __device__ bool intersects(const Box& b)const;
+  __host__ __device__ void addPoint(Vector& p);
+  __host__ __device__ void reset();
 };
 
 class BHVNode{
