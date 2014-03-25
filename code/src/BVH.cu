@@ -601,7 +601,7 @@ void Collisions::storeEdgeEdgeResult(int e1, int e2){
 }
 
 
-__global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potFaceFace, int* nVFOutput, int* nEEOutput, Vector* displacement, int* fnMap, Vertex* vertices, Edge* edges, Face* faces, Box* boxes)
+__global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potFaceFace, int* nVFOutput, int* nEEOutput, Vector* displacement, int* fnMap, Vertex* vertices, Edge* edges, Face* faces, Box* boxes, int* VFOutput, int* EEOutput)
 {
 	int faceA = (blockDim.x * blockIdx.x + threadIdx.x);
 	int j = (blockDim.y * blockIdx.y + threadIdx.y);
@@ -619,7 +619,7 @@ __global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potF
 				Vector v0 = vertices[localv[vertex]];
 				vertexBox.addPoint(v0);
 				Vector p1;
-				vectorAdd(p1, v0, displacement);
+				vectorAdd(p1, v0, *displacement);
 				vertexBox.addPoint(p1);
 
 				if(vertexBox.intersects(boxes[fnMap[faceB]])){
@@ -643,8 +643,8 @@ __global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potF
 				edgeBoxA.addPoint(v1);
 
 				Vector p1, p2;
-				vectorAdd(p1, v0, displacement);
-				vectorAdd(p2, v1, displacement);
+				vectorAdd(p1, v0, *displacement);
+				vectorAdd(p2, v1, *displacement);
 				edgeBoxA.addPoint(p1);
 				edgeBoxA.addPoint(p2);
 	
@@ -659,8 +659,8 @@ __global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potF
 						edgeBoxB.addPoint(v2);
 						edgeBoxB.addPoint(v3);
 	    
-						vectorAdd(p1, v2, displacement);
-						vectorAdd(p2, v3, displacement);
+						vectorAdd(p1, v2, *displacement);
+						vectorAdd(p2, v3, *displacement);
 
 						edgeBoxB.addPoint(p1);
 						edgeBoxB.addPoint(p2);
@@ -728,7 +728,7 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     // Invoke kernel
     int threadsPerBlock = maxSize;	// deze moeten nog verbeterd
     int blocksPerGrid = nFaces;		// allebei dus
-    breakDownDeel1<<<blocksPerGrid, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, nVFOutput, nEEOutput, disp, fnMap, vCuda, eCuda, fCuda, bCuda);
+    breakDownDeel1<<<blocksPerGrid, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, nVFOutput, nEEOutput, disp, fnMap, vCuda, eCuda, fCuda, bCuda, VFOutput, EEOutput);
 
     // Copy result from device memory to host memory
     // Output vectors contain the result in host memory
