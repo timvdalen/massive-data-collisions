@@ -1,0 +1,68 @@
+\documentclass[dutch]{beamer}
+
+\usepackage{pgfpages}
+
+\setbeameroption{}
+
+\mode<handout>{
+	\usepackage{pgfpages}
+	\pgfpagesuselayout{4 on 1}[a4paper, border shrink=5mm, landscape]
+}
+
+\usetheme[official=false,department=winuk,theme=blue]{tue2008}
+
+\usepackage{babel}
+
+\title{Collision 2}
+
+\subtitle{Algorithms for Massive Data}
+
+\author[Team GPU 2]{
+	N.~Advokaat
+	\and
+	T.M.~van~Dalen
+	\and
+	J.?.~Wulms
+}
+
+\institute[TU/e]{
+	Mathematics and Computer Science\\
+	Eindhoven University of Technology
+}
+
+\date{March 25, 2014}
+
+\subject{Collision 2 - midterm presentation}
+
+\AtBeginSection[]{
+	\begin{frame}
+		\frametitle{Outline}
+		\tableofcontents[currentsection]
+	\end{frame}
+}
+
+\begin{document}
+	\begin{frame}
+		\titlepage
+	\end{frame}
+
+	\begin{frame}{Outline}
+		\tableofcontents
+	\end{frame}
+
+	\section{Intro}
+		\input{sections/intro}
+
+	\section{Problem discription}
+		\input{sections/problem}
+
+	\section{Approach}
+		\input{sections/approach}
+
+	\section{Intermediary results}
+		\input{sections/results}
+
+	\section{Improvements}
+		\input{sections/improvement}
+\end{document}
+
