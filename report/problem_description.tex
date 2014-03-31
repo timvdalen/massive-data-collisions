@@ -1,1 +1,11 @@
 \section{Problem Description}
+Our task is to replace the function \textit{breakDown} by an efficient CUDA implementation. This function transforms face-face collisions to vertex-face and edge-edge collisions, more precisely it has as input and output:\\
+\\
+\indent \indent \textbf{Input}\\ 
+\indent \indent array of size \textit{nFaces * maxSize} in which for each face at most \textit{maxSize}\\
+\indent \indent indices to potentially-colliding faces are stored.\\
+\indent \indent \textbf{Output}\\
+\indent \indent array \textit{potentialVertexFace} of size \textit{nVertices * maxSize}\\
+\indent \indent array \textit{potentialEdgeEdge} of size \textit{nEdges * maxSize}\\
+\\
+Furthermore, \textit{potentialEdgeEdge} is not allowed to contain duplicate entries, in the given program this is ensured by only storing an edge at the endpoint with lowest id. 

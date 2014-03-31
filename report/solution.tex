@@ -1,1 +1,41 @@
 \section{Solution}
+\subsection{Executing on GPU cluster and Timing}
+We performed all our experiments on a remote GPU cluster as described in \ref{sec:system}. This cluster however has no GL installed, therefore we could not run the given application on it. This required us to strip all GUI elements from the CPU implementation. \\
+Another issue was how we would measure the time it took for our program to complete.\\
+$<$TODO$>$
+\subsection{Distribution over threads in CUDA}
+$<$TODO$>$
+\subsection{Balancing of thread workload}
+The edge-edge pairs are stored in an array of size \textit{nEdges * maxSize}, and for each edge all potential colliding edges are stored. This output array should also not contain any duplicate entries. The approach used in the CPU implementation solved this by checking the ids of the edges. Then, if the id of the first edge A is smaller than that of the second edge B, edge B is stored in the part of the array assigned to edge A. This results in a triangular adjacency matrix, as seen in table \ref{table:balance}. This is not a problem on a sequential CPU implementation, but in a parallel CUDA implementation this would lead to threads that have imbalanced workload distribution, resulting in overall performance degradation. Therefore we needed a method to balance this matrix. We did this using the following method.\\
+\\
+\indent \indent \textbf{if} $(A + B) \% 2 = 0$ \textbf{then} store at $min(A,B)$\\
+\indent \indent \textbf{else} store at $max(A,B)$ \\
+\\
+This generally leads to a better distribution, as seen in table \ref{table:balance}.
+
+\begin{table}[!htb]
+    	\begin{subtable}{.5\linewidth}
+		\centering
+		\begin{tabular}{ c || c | c | c | c }
+			1 & 2 & 3 & 4 & 5 \\
+			2 & 3 & 4 & 5 \\
+			3 & 4 & 5 & \\
+			4 & 5 & & \\
+			5 & & &\\
+		\end{tabular}
+		\caption{Old CPU balance}
+	\end{subtable}%
+    	\begin{subtable}{.5\linewidth}
+		\centering        
+		\begin{tabular}{ c || c | c | c | c }
+			1 & 3 & 5 &  &  \\
+			2 & 1 & 4 &  &\\
+			3 & 2 & 5 &  &\\
+			4 & 1 & 3 &  &\\
+			5 & 2 & 4 &  &\\
+		\end{tabular}
+		\caption{New CUDA balance}
+	\end{subtable} 
+	\caption{Difference between balancing on a complete Edge-Edge adjacency matrix.}
+	\label{table:balance}
+\end{table}
