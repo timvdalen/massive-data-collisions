@@ -9,6 +9,15 @@
 #include "cuPrintf.itiscu"
 #include <sys/time.h>
 
+#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, char *file, int line, bool abort=true)
+{
+	   if (code != cudaSuccess) 
+		      {
+			            fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+				          if (abort) exit(code);
+					     }
+}
 void vectorDot(float& r, const Vector& a, const Vector& b){
   r = a.x * b.x + a.y * b.y + a.z * b.z;
 }
@@ -498,17 +507,10 @@ void BVH::checkCollisions(Collisions* c, const Vector& displacement){
   
   checkFaceFaceCollisions(c);
 
-  struct timeval tv;
-
-  gettimeofday(&tv, NULL);
-  unsigned long long time_before = (unsigned long long)(tv.tv_sec) * 1000 + (unsigned long long)(tv.tv_usec) / 1000;
 
   c->breakDown(this, displacement);
 
-   gettimeofday(&tv, NULL);
-  unsigned long long time_after = (unsigned long long)(tv.tv_sec) * 1000 + (unsigned long long)(tv.tv_usec) / 1000;
 
-  printf("%llu ms elapsed\n", time_after - time_before);
 }
 
 Collisions::Collisions(const BVH* b, int max){
@@ -687,55 +689,96 @@ __global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potF
 }
 
 void Collisions::breakDown(const BVH* bvh, const Vector& displacement){  
-
-	cudaPrintfInit();
+    size_t avail;
+    size_t total;
+    cudaMemGetInfo(&avail, &total);
+    
+    size_t required = nFaces*sizeof(int) + nFaces*maxSize*sizeof(int) + sizeof(Vector) + nFaces*sizeof(Vertex) + nEdges*sizeof(Edge) + nFaces*sizeof(Face) + bvh->nNodes*sizeof(Box) + nVertices*maxSize*sizeof(int) + nVertices*sizeof(int) + nEdges*maxSize*sizeof(int) + nEdges*sizeof(int);
+    
+    if(required > avail){
+        printf("Memory is not going to fit in device memory\n");
+    }else{
+        printf("Memory is going to fit in device memory\n");
+    }
+    
+    cudaPrintfInit();
 
     // Allocate vectors in device memory
     int* nPotFace;
-    cudaMalloc(&nPotFace, nFaces*sizeof(int));
+    gpuErrchk( cudaMalloc(&nPotFace, nFaces*sizeof(int)));
     int* potFaceFace;
-    cudaMalloc(&potFaceFace, nFaces*maxSize*sizeof(int));
-	Vector* disp;
-	cudaMalloc(&disp, sizeof(Vector));
+    gpuErrchk(cudaMalloc(&potFaceFace, nFaces*maxSize*sizeof(int)));
+    Vector* disp;
+    gpuErrchk(cudaMalloc(&disp, sizeof(Vector)));
 	
-	int* fnMap;
-	cudaMalloc(&fnMap, nFaces*sizeof(int));
-	Vertex* vCuda;
-	cudaMalloc(&vCuda, nVertices*sizeof(Vertex));
-	Edge* eCuda;
-	cudaMalloc(&eCuda, nEdges*sizeof(Edge));
-	Face* fCuda;
-	cudaMalloc(&fCuda, nFaces*sizeof(Face));
-	Box* bCuda;
-	cudaMalloc(&bCuda, bvh->nNodes*sizeof(Box));
+    int* fnMap;
+    gpuErrchk(cudaMalloc(&fnMap, nFaces*sizeof(int)));
+    Vertex* vCuda;
+    gpuErrchk(cudaMalloc(&vCuda, nVertices*sizeof(Vertex)));
+    Edge* eCuda;
+    gpuErrchk(cudaMalloc(&eCuda, nEdges*sizeof(Edge)));
+    Face* fCuda;
+    gpuErrchk(cudaMalloc(&fCuda, nFaces*sizeof(Face)));
+    Box* bCuda;
+    gpuErrchk(cudaMalloc(&bCuda, bvh->nNodes*sizeof(Box)));
 	
-	int* VFOutput;
-    cudaMalloc(&VFOutput, nVertices*maxSize*sizeof(int));
-	int* nVFOutput;
-	cudaMalloc(&nVFOutput, nVertices*sizeof(int));
-	int* EEOutput;
-    cudaMalloc(&EEOutput, nEdges*maxSize*sizeof(int));
-	int* nEEOutput;
-	cudaMalloc(&nEEOutput, nEdges*sizeof(int));
+    int* VFOutput;
+    gpuErrchk(cudaMalloc(&VFOutput, nVertices*maxSize*sizeof(int)));
+    int* nVFOutput;
+    gpuErrchk(cudaMalloc(&nVFOutput, nVertices*sizeof(int)));
+    int* EEOutput;
+    gpuErrchk(cudaMalloc(&EEOutput, nEdges*maxSize*sizeof(int)));
+    int* nEEOutput;
+    gpuErrchk(cudaMalloc(&nEEOutput, nEdges*sizeof(int)));
+
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    unsigned long long time_before_incopy = (unsigned long long)(tv.tv_sec) * 1000 + (unsigned long long)(tv.tv_usec) / 1000;
+
+
 
     // Copy vectors from host memory to device memory
-    cudaMemcpy(nPotFace, nPotentialFaces, nFaces*sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(potFaceFace, potentialFaceFace, nFaces*maxSize*sizeof(int), cudaMemcpyHostToDevice);
-	cudaMemcpy(nVFOutput, nPotentialVertexFaces, nVertices*sizeof(int), cudaMemcpyHostToDevice);
-	cudaMemcpy(nEEOutput, nPotentialEdgeEdges, nEdges*sizeof(int), cudaMemcpyHostToDevice);
-	cudaMemcpy(disp, &displacement, sizeof(Vector), cudaMemcpyHostToDevice);
-	cudaMemcpy(fnMap, bvh->faceNodeMap, nFaces*sizeof(int), cudaMemcpyHostToDevice);
-	cudaMemcpy(vCuda, bvh->mesh->vertices, nVertices*sizeof(Vertex), cudaMemcpyHostToDevice);
-	cudaMemcpy(eCuda, bvh->mesh->edges, nEdges*sizeof(Edge), cudaMemcpyHostToDevice);
-	cudaMemcpy(fCuda, bvh->mesh->faces, nFaces*sizeof(Face), cudaMemcpyHostToDevice);
-	cudaMemcpy(bCuda, bvh->boxes, bvh->nNodes*sizeof(Box), cudaMemcpyHostToDevice);
-	
+    gpuErrchk(cudaMemcpy(nPotFace, nPotentialFaces, nFaces*sizeof(int), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(potFaceFace, potentialFaceFace, nFaces*maxSize*sizeof(int), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(nVFOutput, nPotentialVertexFaces, nVertices*sizeof(int), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(nEEOutput, nPotentialEdgeEdges, nEdges*sizeof(int), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(disp, &displacement, sizeof(Vector), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(fnMap, bvh->faceNodeMap, nFaces*sizeof(int), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(vCuda, bvh->mesh->vertices, nVertices*sizeof(Vertex), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(eCuda, bvh->mesh->edges, nEdges*sizeof(Edge), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(fCuda, bvh->mesh->faces, nFaces*sizeof(Face), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(bCuda, bvh->boxes, bvh->nNodes*sizeof(Box), cudaMemcpyHostToDevice));
+    gettimeofday(&tv, NULL);
+    unsigned long long time_after_incopy = (unsigned long long)(tv.tv_sec) * 1000 + (unsigned long long)(tv.tv_usec) / 1000;
+    
+    
     // Invoke kernel
-	dim3 threadsPerBlock(8, 8);  // 64 threads
-	dim3 numBlocks(nFaces/threadsPerBlock.x, maxSize/threadsPerBlock.y); 
-    //int threadsPerBlock = 10;//maxSize;	// deze moeten nog verbeterd
-    //int blocksPerGrid = 10;//nFaces;		// allebei dus
+    //dim3 threadsPerBlock(16, 16);  // 1024 threads
+    //dim3 numBlocks(nFaces/threadsPerBlock.x, maxSize/threadsPerBlock.y); 
+    int threadsPerBlock = 1;//maxSize;	// deze moeten nog verbeterd
+    int numBlocks = 1;//nFaces;		// allebei dus
+    
+    
+
+
+  gettimeofday(&tv, NULL);
+  unsigned long long time_before = (unsigned long long)(tv.tv_sec) * 1000 + (unsigned long long)(tv.tv_usec) / 1000;
+
+   
+
     breakDownDeel1<<<numBlocks, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, nVFOutput, nEEOutput, disp, fnMap, vCuda, eCuda, fCuda, bCuda, VFOutput, EEOutput);
+
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+
+gettimeofday(&tv, NULL);
+  unsigned long long time_after = (unsigned long long)(tv.tv_sec) * 1000 + (unsigned long long)(tv.tv_usec) / 1000;
+
+  printf("%llu ms elapsed\n", time_after - time_before);
+
+  gettimeofday(&tv, NULL);
+  unsigned long long time_before_outcopy = (unsigned long long)(tv.tv_sec) * 1000 + (unsigned long long)(tv.tv_usec) / 1000;
+
 
     // Copy result from device memory to host memory
     // Output vectors contain the result in host memory
@@ -744,6 +787,14 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
 	cudaMemcpy(potentialEdgeEdge, EEOutput, nEdges*maxSize*sizeof(int), cudaMemcpyDeviceToHost);
 	cudaMemcpy(nPotentialEdgeEdges, nEEOutput, nEdges*sizeof(int), cudaMemcpyDeviceToHost);
 	
+      	gettimeofday(&tv, NULL);
+  unsigned long long time_after_outcopy = (unsigned long long)(tv.tv_sec) * 1000 + (unsigned long long)(tv.tv_usec) / 1000;
+
+
+  	printf("%llu ms incopy\n", time_after_incopy - time_before_incopy);
+  	printf("%llu ms outcopy\n", time_after_outcopy - time_before_outcopy);
+
+
 	// free device memory
 	cudaFree(nPotFace);
 	cudaFree(potFaceFace);
