@@ -659,7 +659,8 @@ __global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potF
 				edgeBoxA.addPoint(p2);
 	
 				for(int edgeB=0;edgeB<3;edgeB++){
-					if(localeA[edgeA] < localeB[edgeB]){
+					if((localeA[edgeA] < localeB[edgeB] && (localeA[edgeA] + localeB[edgeB]) % 2 == 0) ||
+					(localeA[edgeA] >= localeB[edgeB] && (localeA[edgeA] + localeB[edgeB]) % 2 == 1)){
 						int* verticesEdgeB = edges[localeB[edgeB]].vertices;
 
 						Box edgeBoxB;
