@@ -692,14 +692,14 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     // preprocess bounding boxes to save space
 	Box* faceBoxes[nFaces];
 	for(int i=0; i<nFaces; i++) {
-		faceBoxes[i] = &bvh->boxes[bvh->faceNodeMap[i]];
+		faceBoxes[i] = &(bvh->boxes[bvh->faceNodeMap[i]]);
 	}
 	
 	size_t avail;
     size_t total;
     cudaMemGetInfo(&avail, &total);
     
-    size_t required = nFaces*sizeof(int) + nFaces*maxSize*sizeof(int) + sizeof(Vector) + nFaces*sizeof(int) + nVertices*sizeof(Vertex) + nEdges*sizeof(Edge) + nFaces*sizeof(Face) + bvh->nNodes*sizeof(Box) + nVertices*maxSize*sizeof(int) + nVertices*sizeof(int) + nEdges*maxSize*sizeof(int) + nEdges*sizeof(int);
+    size_t required = nFaces*sizeof(int) + nFaces*maxSize*sizeof(int) + sizeof(Vector) + nFaces*sizeof(int) + nVertices*sizeof(Vertex) + nEdges*sizeof(Edge) + nFaces*sizeof(Face) + nFaces*sizeof(Box) + nVertices*maxSize*sizeof(int) + nVertices*sizeof(int) + nEdges*maxSize*sizeof(int) + nEdges*sizeof(int);
     
 	int splitfactor = 1;
 	while(required > avail) {
@@ -708,7 +708,6 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
 		required = sizeof(Vector) + nVertices*sizeof(Vertex) + nEdges*sizeof(Edge) + nFaces*sizeof(Face) + nFaces*sizeof(Box) + nVertices*maxSize*sizeof(int) + nVertices*sizeof(int) + nEdges*maxSize*sizeof(int) + nEdges*sizeof(int) + 
 		// the input can be split over batches of parallel calculations
 		(nFaces*sizeof(int) + nFaces*maxSize*sizeof(int)) / splitfactor;
-		
 	}
     
     cudaPrintfInit();
@@ -742,7 +741,6 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     struct timeval tv;
     gettimeofday(&tv, NULL);
     unsigned long long time_before_incopy = (unsigned long long)(tv.tv_sec) * 1000000 + (unsigned long long)(tv.tv_usec);
-
 
 
     // Copy vectors from host memory to device memory
