@@ -608,14 +608,14 @@ void Collisions::storeEdgeEdgeResult(int e1, int e2){
 }
 
 
-__global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potFaceFace, int* nVFOutput, int* nEEOutput, Vector* displacement, Vertex* vertices, Edge* edges, Face* faces, Box* boxes, int* VFOutput, int* EEOutput)
+__global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potFaceFace, int* nVFOutput, int* nEEOutput, Vector* displacement, Vertex* vertices, Edge* edges, Face* faces, Box* boxes, int* VFOutput, int* EEOutput, int splitfactor, bool last)
 {
 	int faceA = (blockDim.x * blockIdx.x + threadIdx.x);
 	int j = (blockDim.y * blockIdx.y + threadIdx.y);
 	//cuPrintf("blockDim.x: %d, blockIdx.x: %d, threadIdx.x: %d\n", blockDim.x, blockIdx.x, threadIdx.x);
 	//cuPrintf("blockDim.y: %d, blockIdx.y : %d, threadIdx.y : %d\n", blockDim.y, blockIdx.y, threadIdx.y);
 	//cuPrintf("faceA : %d, j : %d\n", faceA, j);
-    if (faceA < nFaces) {
+    if ((faceA < nFaces/splitfactor && !last) || (faceA < nFaces%splitfactor && last)) {
 		int nPairs = nPotFace[faceA];
 		if(j < nPairs) {
 			int faceB = potFaceFace[faceA * maxSize + j];
@@ -705,7 +705,7 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
 	size_t avail;
     size_t total;
     cudaMemGetInfo(&avail, &total);
-   	size_t req_constant = sizeof(Vector) + nVertices*sizeof(Vertex) + nEdges*sizeof(Edge) + nFaces*sizeof(Face) + nFaces*sizeof(Box) + nVertices*maxSize*sizeof(int) + nVertices*sizeof(int) + nEdges*maxSize*sizeof(int) + nEdges*sizeof(int); 
+   	size_t req_constant = sizeof(Vector) + nVertices*sizeof(Vertex) + nEdges*sizeof(Edge) + nFaces*sizeof(Face) + nFaces*sizeof(Box) + nVertices*maxSize*sizeof(int) + nVertices*sizeof(int) + nEdges*maxSize*sizeof(int) + nEdges*sizeof(int) + sizeof(int); 
 	size_t required = req_constant + nFaces*sizeof(int) + nFaces*maxSize*sizeof(int);
    
 	assert(req_constant <= avail); //If the constant doesn't fit, this isn't going to get anywhere
@@ -753,7 +753,6 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
 
 
     // Copy vectors from host memory to device memory
-    gpuErrchk(cudaMemcpy(nPotFace, nPotentialFaces, nFaces*sizeof(int), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(potFaceFace, potentialFaceFace, nFaces*maxSize*sizeof(int), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(nVFOutput, nPotentialVertexFaces, nVertices*sizeof(int), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(nEEOutput, nPotentialEdgeEdges, nEdges*sizeof(int), cudaMemcpyHostToDevice));
@@ -778,10 +777,23 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
   gettimeofday(&tv, NULL);
   unsigned long long time_before = (unsigned long long)(tv.tv_sec) * 1000000 + (unsigned long long)(tv.tv_usec);
 
-   
-
-    breakDownDeel1<<<numBlocks, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, nVFOutput, nEEOutput, disp, vCuda, eCuda, fCuda, bCuda, VFOutput, EEOutput);
+	int indexmult = nPotentialFaces/splitfactor;
+	for(int i = 0; i<splitfactor; i++) {
+	
+	if(splitfactor != 1 && i == splitfactor-1) {
+		gpuErrchk(cudaMemcpy(nPotFace, nPotentialFaces+i*indexmult, nFaces%splitfactor*sizeof(int), cudaMemcpyHostToDevice));
+		
+		breakDownDeel1<<<numBlocks, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, nVFOutput, nEEOutput, disp, vCuda, eCuda, fCuda, bCuda, VFOutput, EEOutput, splitfactor, true);
+	} else {
+		gpuErrchk(cudaMemcpy(nPotFace, nPotentialFaces+i*indexmult, nFaces/splitfactor*sizeof(int), cudaMemcpyHostToDevice));
+		
+		breakDownDeel1<<<numBlocks, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, nVFOutput, nEEOutput, disp, vCuda, eCuda, fCuda, bCuda, VFOutput, EEOutput, splitfactor, false);
+	}
+	
+    
     cudaDeviceSynchronize();
+	
+	}
    
     gettimeofday(&tv, NULL);
     unsigned long long time_after = (unsigned long long)(tv.tv_sec) * 1000000 + (unsigned long long)(tv.tv_usec);
