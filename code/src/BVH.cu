@@ -748,7 +748,6 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     gpuErrchk(cudaMalloc(&nEEOutput, nEdges*sizeof(int)));
 	
     // Copy vectors from host memory to device memory
-    gpuErrchk(cudaMemcpy(potFaceFace, potentialFaceFace, nFaces*maxSize*sizeof(int), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(nVFOutput, nPotentialVertexFaces, nVertices*sizeof(int), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(nEEOutput, nPotentialEdgeEdges, nEdges*sizeof(int), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(disp, &displacement, sizeof(Vector), cudaMemcpyHostToDevice));
@@ -763,21 +762,22 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     //int threadsPerBlock = 1;//maxSize;	// deze moeten nog verbeterd
     //int numBlocks = 1;//nFaces;		// allebei dus
     
-    
     struct timeval before;
     struct timeval after;
-
-	int indexmult = nPotentialFaces/splitfactor;
+	
+	int indexmult = nFaces/splitfactor;
         gettimeofday(&before, NULL);
 	for(int i = 0; i<splitfactor; i++) {
 	    if(splitfactor != 1 && i == splitfactor-1) {
-		gpuErrchk(cudaMemcpy(nPotFace, nPotentialFaces+i*indexmult, nFaces%splitfactor*sizeof(int), cudaMemcpyHostToDevice));
+			gpuErrchk(cudaMemcpy(nPotFace, nPotentialFaces+i*indexmult, nFaces%splitfactor*sizeof(int), cudaMemcpyHostToDevice));
+			gpuErrchk(cudaMemcpy(potFaceFace, potentialFaceFace+i*indexmult*maxSize, nFaces%splitfactor*maxSize*sizeof(int), cudaMemcpyHostToDevice));
 		
-		breakDownDeel1<<<numBlocks, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, nVFOutput, nEEOutput, disp, vCuda, eCuda, fCuda, bCuda, VFOutput, EEOutput, splitfactor, true);
+			breakDownDeel1<<<numBlocks, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, nVFOutput, nEEOutput, disp, vCuda, eCuda, fCuda, bCuda, VFOutput, EEOutput, splitfactor, true);
 	    } else {
-		gpuErrchk(cudaMemcpy(nPotFace, nPotentialFaces+i*indexmult, nFaces/splitfactor*sizeof(int), cudaMemcpyHostToDevice));
+			gpuErrchk(cudaMemcpy(nPotFace, nPotentialFaces+i*indexmult, nFaces/splitfactor*sizeof(int), cudaMemcpyHostToDevice));
+			gpuErrchk(cudaMemcpy(potFaceFace, potentialFaceFace+i*indexmult*maxSize, nFaces/splitfactor*maxSize*sizeof(int), cudaMemcpyHostToDevice));
 		
-		breakDownDeel1<<<numBlocks, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, nVFOutput, nEEOutput, disp, vCuda, eCuda, fCuda, bCuda, VFOutput, EEOutput, splitfactor, false);
+			breakDownDeel1<<<numBlocks, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, nVFOutput, nEEOutput, disp, vCuda, eCuda, fCuda, bCuda, VFOutput, EEOutput, splitfactor, false);
 	    }
             cudaDeviceSynchronize();
 	}
