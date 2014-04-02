@@ -6,10 +6,11 @@ This required us to strip all GUI elements from the CPU implementation.
 
 %TODO
 
-Another issue was how we would measure the time it took for our program to complete.
+Another issue was how we would measure the time it took for our program to complete on both the CPU and GPU implementations.
+Because the implementations work fundamentally different, this proved to be quite a challenge.
 
 Our first approach was to count the number of processor clock ticks that have elapsed during the call to the \texttt{breakDown} function.
-However, due to the asynchronous nature of CUDA kernel calls, we decided to use real elapsed time (using the \texttt{gettimeofday} function from \texttt{<sys/time.h>}).
+However, due to the asynchronous nature of CUDA kernel calls and the way clock ticks are calculated on POSIX compliant operating systems, we decided to use real elapsed time (using the \texttt{gettimeofday} function from \texttt{<sys/time.h>}).
 
 When we switched to counting milliseconds we discovered that the real running time of the CPU implementation in our testing environment (as described in Section~\ref{sec:system}) was frequently below 1 millisecond, even on the highest data set that was available to us.
 Due to this, we started looking in to ways to re-run the experiment multiple times to get a more meaningful number.
@@ -21,16 +22,25 @@ Running the algorithm multiple times was an even harder challange for the GPU im
 Besides the previously mentioned set-up, the GPU implementation requires some extra set-up for CUDA.
 This mostly consists of copying required data into the GPU device memory.
 Unfortunately, where the actual running time of the algorithm on the GPU is again smaller than 1 millisecond, this copying can take over 1,200 milliseconds, even for small data sets.
-We decided to not pursue this method of measuring further, since the order of the running times for set-up and execution were so far apart we did not feel we could trust the resulting approximation.
 
-While working on the millisecond approximation of the running time of the GPU implementation, we were forced to solve the synchronization problem for the CUDA device.
-Because of this we went back to our first approach of measuring clock ticks, which is a far more precise measure.
+When looking for more precise measures, we found out that the compiler on our machine also supported microseconds.
+We were not able to find out a guarantee on how precise this was, but it seemed our best option.
 
-In the end, we settled on using the number of CPU ticks elapsed between the start and end of the \texttt{breakDown} function for the CPU implementation and the number of CPU ticks elapsed between the start and completion of \textbf{all} GPU threads for the GPU implementation.
+In the end, we added a flag to the program that, if set, outputs the number of microseconds it took for the \texttt{breakDown} function to run and suppresses all other output.
+For the CPU implementation, this time difference is calculated between the start and end of the \texttt{breakDown} function.
+For the GPU implementation, it is calculated between the start of the CUDA threads and when they have \textbf{all} completed.
 Note that we do not measure the time it takes to copy the required data in and out of the GPU device memory, as in a 'real' implementation, where the entire algorithm would run on the GPU, this data would already be available.
 
-We are aware of the fact that counting CPU ticks is far from a perfect metric as it can be influenced by a large number of factors beyond our control.
-However, it seemed like the best metric available.
+After that, we ran both the CPU and the GPU implementations of the program with the flag set $1000$ times to generate enough samples (since we are not sure how precise the measurement in microseconds is).
+With these samples, we construct two boxplots in the R program so we can easily spot if there are any significant differences in the running times of the CPU and GPU implementations.
+
+An example of one of these graphs, in this case for the \texttt{bunny.txt} data set, is shown in Figure~\ref{fig:bunny_box}.
+
+\begin{figure}
+	%TODO
+	\caption{Example boxplots for the \texttt{bunny.txt} data set}
+	\label{fig:bunny_box}
+\end{figure}
 
 \subsection{Distribution over threads in CUDA}
 $<$TODO$>$
