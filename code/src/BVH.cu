@@ -772,7 +772,8 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     //int numBlocks = 1;//nFaces;		// allebei dus
     
     
-
+    struct timeval before;
+    struct timeval after;
 
   gettimeofday(&tv, NULL);
   unsigned long long time_before = (unsigned long long)(tv.tv_sec) * 1000000 + (unsigned long long)(tv.tv_usec);
@@ -789,19 +790,22 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
 		
 		breakDownDeel1<<<numBlocks, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, nVFOutput, nEEOutput, disp, vCuda, eCuda, fCuda, bCuda, VFOutput, EEOutput, splitfactor, false);
 	}
-	
-    
+
+    gettimeofday(&before, NULL);
+
     cudaDeviceSynchronize();
 	
 	}
    
-    gettimeofday(&tv, NULL);
-    unsigned long long time_after = (unsigned long long)(tv.tv_sec) * 1000000 + (unsigned long long)(tv.tv_usec);
+    gettimeofday(&after, NULL);
 
-  printf("%llu us elapsed\n", time_after - time_before);
+    unsigned long long time_before = (unsigned long long)(before.tv_sec) * 1000000 + (unsigned long long)(before.tv_usec);
+    unsigned long long time_after = (unsigned long long)(after.tv_sec) * 1000000 + (unsigned long long)(after.tv_usec);
 
-	gpuErrchk(cudaPeekAtLastError());
-	gpuErrchk(cudaDeviceSynchronize());
+    printf("%llu\n", time_after - time_before);
+
+   gpuErrchk(cudaPeekAtLastError());
+   gpuErrchk(cudaDeviceSynchronize());
 
 
   gettimeofday(&tv, NULL);
@@ -819,8 +823,8 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
   unsigned long long time_after_outcopy = (unsigned long long)(tv.tv_sec) * 1000000 + (unsigned long long)(tv.tv_usec);
 
 
-  	printf("%llu us incopy\n", time_after_incopy - time_before_incopy);
-  	printf("%llu us outcopy\n", time_after_outcopy - time_before_outcopy);
+  //	printf("%llu us incopy\n", time_after_incopy - time_before_incopy);
+  //	printf("%llu us outcopy\n", time_after_outcopy - time_before_outcopy);
 
 
 	// free device memory
