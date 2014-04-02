@@ -20,10 +20,10 @@ However, due to the asynchronous nature of CUDA kernel calls and the way clock t
 When we switched to counting milliseconds we discovered that the real running time of the CPU implementation in our testing environment (as described in Section~\ref{sec:system}) was frequently below 1 millisecond, even on the highest data set that was available to us.
 Due to this, we started looking in to ways to re-run the experiment multiple times to get a more meaningful number.
 Unfortunately, this proved very difficult since there is a set-up algorithm that needs to be run before the \texttt{breakDown} function can get meaningful results.
-The real running time of the \texttt{breakDown} function is about 0.5% of that set-up function.
-Because of this, the only way to get results is to run the set-up function an $n$ amount of times, then run the set-up plus the \texttt{breakDown} function $n$ times and substract the running times to get an approximate time for the real running time of \texttt{breakDown}.
+The real running time of the \texttt{breakDown} function is about 0.5\% of that set-up function.
+Because of this, the only way to get results is to run the set-up function an $n$ amount of times, then run the set-up plus the \texttt{breakDown} function $n$ times and subtract the running times to get an approximate time for the real running time of \texttt{breakDown}.
 
-Running the algorithm multiple times was an even harder challange for the GPU implementation.
+Running the algorithm multiple times was an even harder challenge for the GPU implementation.
 Besides the previously mentioned set-up, the GPU implementation requires some extra set-up for CUDA.
 This mostly consists of copying required data into the GPU device memory.
 Unfortunately, where the actual running time of the algorithm on the GPU is again smaller than 1 millisecond, this copying can take over 1,200 milliseconds, even for small data sets.
