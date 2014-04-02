@@ -705,7 +705,7 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
 	size_t avail;
     size_t total;
     cudaMemGetInfo(&avail, &total);
-   	size_t req_constant = sizeof(Vector) + nVertices*sizeof(Vertex) + nEdges*sizeof(Edge) + nFaces*sizeof(Face) + nFaces*sizeof(Box) + nVertices*maxSize*sizeof(int) + nVertices*sizeof(int) + nEdges*maxSize*sizeof(int) + nEdges*sizeof(int) + sizeof(int); 
+   	size_t req_constant = sizeof(Vector) + nVertices*sizeof(Vertex) + nEdges*sizeof(Edge) + nFaces*sizeof(Face) + nFaces*sizeof(Box) + nVertices*maxSize*sizeof(int) + nVertices*sizeof(int) + nEdges*maxSize*sizeof(int) + nEdges*sizeof(int); 
 	size_t required = req_constant + nFaces*sizeof(int) + nFaces*maxSize*sizeof(int);
    
 	assert(req_constant <= avail); //If the constant doesn't fit, this isn't going to get anywhere

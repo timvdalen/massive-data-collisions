@@ -48,8 +48,14 @@ An example of one of these graphs, in this case for the \texttt{bunny.txt} data 
 \end{figure}
 
 \subsection{Distribution over threads in CUDA}
-The first approach to distribute the calculation over the threads in the GPU, was just to let each thread do the calculations for one single face-face pair, to the corresponding vertex-face and edge-edge pairs. We would assign 1024 threads per block, in a 16x16 matrix, and then have the number of blocks calculated as follows: for the x-direction we used \texttt{nFaces / threadsPerBlock.x} and in the y-direction \texttt{maxSize / threadsPerBlock.y}. This way we have \texttt{nFaces * maxSize} threads, which corresponds to the maximum amount of potential face-face pairs. \\
-%However, this approach could spawn too many threads, in which case we need to do more calculations per thread.
+The first approach to distribute the calculation over the threads in the GPU, is to let each thread do the calculations for one single face-face pair, to the corresponding vertex-face and edge-edge pairs. Figure \ref{fig:threaddist} gives an overview of this setup. We assign 256 threads per block, in a 16x16 matrix, and then have the number of blocks calculated as follows: for the x-direction we used \texttt{nFaces / threadsPerBlock.x} and in the y-direction \texttt{maxSize / threadsPerBlock.y}. This way we have \texttt{nFaces * maxSize} threads, which corresponds to the maximum amount of potential face-face pairs. Since we can have 65535 blocks in one direction, and \texttt{maxSize / 16} is not the bounding factor, only \texttt{nFaces / 16} is bounded to being lower than 65535. We can still solve this bound, but we address this in future work.\\
+
+\begin{figure}
+	\includegraphics{Threads.pdf}
+	\caption{Distribution of Threads in a block and total amount of threads in all blocks}
+	\label{fig:threaddist}
+\end{figure}
+
 \subsection{Balancing of thread workload}
 The edge-edge pairs are stored in an array of size \textit{nEdges * maxSize}, and for each edge all potential colliding edges are stored. This output array should also not contain any duplicate entries. The approach used in the CPU implementation solved this by checking the ids of the edges. Then, if the id of the first edge A is smaller than that of the second edge B, edge B is stored in the part of the array assigned to edge A. This results in a triangular adjacency matrix, as seen in table \ref{table:balance}. This is not a problem on a sequential CPU implementation, but in a parallel CUDA implementation this would lead to threads that have imbalanced workload distribution, resulting in overall performance degradation. Therefore we needed a method to balance this matrix. We did this using the following method.\\
 \\
@@ -84,3 +90,25 @@ This generally leads to a better distribution, as seen in table \ref{table:balan
 	\caption{Difference between balancing on a complete Edge-Edge adjacency matrix.}
 	\label{table:balance}
 \end{table}
+
+\subsection{Memory problems}
+Unfortunately, after implementing everything, we could run the program for the \texttt{bunny.txt} data set, but all the other datasets required too much data in the memory of the GPU. First we will give an overview of the data we need, and then show how we have tried to address this problem. The data we need is listed below.
+
+\begin{itemize}
+	\item 2 arrays for the input: an array which contains sequentially for each face, at most \texttt{maxSize} faces for which a potential collision is detected, and another array which holds the actual amount of potential colliding faces, which is used to index the 1-dimensional input array.
+	\item Mappings between faces/vertices/edges/3D-points: We have an array of \texttt{Face} objects, which contain the corresponding vertices and edges, an array of \texttt{Edge} objects, which contain the corresponding vertices, and an array of \texttt{Vertex} objects, which contain the actual coordinates of the points in the 3-dimentional space.
+	\item Bounding boxes: for the vertex-face collisions, we use the already existing bounding boxes for the faces, since they are already calculated in the BVH. For the edge-edge pairs we can easily calculate the bounding boxes on the fly. We do need an extra array that contains for each face and integer that contains the index of that vertex' bounding box in the bounding boxes array.
+	\item The output arrays: an array with for each vertex, at most \texttt{maxSize} faces for which a potential collision is detected, and an array which holds the actual amount of potential colliding vertices, used to index the former array. The other output array holds for each edge, at most \texttt{maxSize} edges for which a potential collision is deteced, and again a potential collision count array.
+\end{itemize}
+
+Now for the bigger data sets, this is too much data to hold in the GPU memory. The mappings and the bounding boxes are working data, so we need them in memory all the time to do the calculations. For the input arrays, we can split them and process them in batches, starting a new GPU kernel for each batch. We elaborate on this in the next section. Initially, we thought the same was possible for the output arrays, but since the input face-face pairs map to arbitrary vertices and edges, we need to have the full output arrays in memory all the time.\\
+
+However, the sum of the size for the last 3 parts was already too big to fit in memory. Therefore we had to come up with extra solutions. The first one prunes the amount of bounding boxes we put in memory. We use the array that maps faces to box-indices, to create a new array that contains for each face the bounding box. This way, instead of having for each node in the BVH-tree a bounding box, we only use the leaves, which contain bounding boxes of the actual faces.\\
+
+The second solution has to do with the variable \texttt{maxSize}, which was set to a way too high value. It's value was 5000, which means that for each face we have at most 5000 other faces with which in can potentially collide, and the same goes for the outputs (vertex-face and edge-edge). This value can be decreased to 500 without making the outputs less precise, for the data sets we were given. This saves a big amount of memory, since the space we reserved for face-face input, and vertex-face and edge-edge outputs, is now decreased by 90\%.
+
+\subsection{Batches}
+Even if the solutions for the memory problem in the previous section are not enough to get the program running, we can split the input array, so that we save some memory there. The downside is that we do a lot more smaller transfers from the host to the device, and we use less parallellism, since there is less data available for parallel execution in each batch. So there is a big tradeoff to be made here, but it might be neccessary to get the program running on the GPU, for certain data sets.\\
+
+The idea of the batching is as follows: We keep on splitting the data in 2, so the first split gives us 2 half input arrays, the second split 4 kwarter input arrays and so on. As soon as we find that one part of the input array fits in memory with the rest of the data, we stop the splitting proces. We then transfer only reserve memory for and transfer the smaller part of the input onto the GPU. There are less threads processing at this point, but there is still parallellism. When all the threads have finished, we load the next part of the input in the GPU memory and make a new kernel call. This process is repeated until all the parts of the input have been processed, At the end of the input array we have to be careful, because the last remainder of the input does not necessarily have the same size as its predecessors. This means that we have to make sure that we only process the remaining part, and not the (no longer useful) data that is in the remaining space we reserved in GPU memory.
+
