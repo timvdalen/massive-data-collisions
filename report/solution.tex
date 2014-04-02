@@ -1,10 +1,15 @@
 \section{Solution}
 \subsection{Executing on GPU cluster and Timing}
 We performed all our experiments on a remote GPU cluster as described in \ref{sec:system}.
-This cluster however has no GL installed, therefore we could not run the given application on it.
+
+The nodes in this cluster have no GL installed, therefore we could not run the given CPU application directly on any of those.
 This required us to strip all GUI elements from the CPU implementation.
 
-%TODO
+Due to the way the program was organized we were able to do this in a reasonable amount of time by just not compiling the GUI frame classes and removing the references to the GUI from the rest of the code.
+Luckily, only the main method had references to the GUI, the rest of the program was free of GUI implementation details.
+
+In GUI mode, the tool would run the entire algorithm each time a parameter changed.
+Our new program runs the algorithm once, outputs the number of possible collisions left (split up into vector-face and edge-edge) after the execution of the \texttt{breakDown} function (we use these metrics to later compare the GPU implementation to the CPU implementation) and exists.
 
 Another issue was how we would measure the time it took for our program to complete on both the CPU and GPU implementations.
 Because the implementations work fundamentally different, this proved to be quite a challenge.
