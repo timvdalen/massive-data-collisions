@@ -780,14 +780,16 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
    
 
     breakDownDeel1<<<numBlocks, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, nVFOutput, nEEOutput, disp, vCuda, eCuda, fCuda, bCuda, VFOutput, EEOutput);
+    cudaDeviceSynchronize();
+   
+    gettimeofday(&tv, NULL);
+    unsigned long long time_after = (unsigned long long)(tv.tv_sec) * 1000000 + (unsigned long long)(tv.tv_usec);
+
+  printf("%llu us elapsed\n", time_after - time_before);
 
 	gpuErrchk(cudaPeekAtLastError());
 	gpuErrchk(cudaDeviceSynchronize());
 
-gettimeofday(&tv, NULL);
-  unsigned long long time_after = (unsigned long long)(tv.tv_sec) * 1000000 + (unsigned long long)(tv.tv_usec);
-
-  printf("%llu us elapsed\n", time_after - time_before);
 
   gettimeofday(&tv, NULL);
   unsigned long long time_before_outcopy = (unsigned long long)(tv.tv_sec) * 1000000 + (unsigned long long)(tv.tv_usec);
