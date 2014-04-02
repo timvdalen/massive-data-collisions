@@ -7,3 +7,55 @@ All experiments are executed on a machine with the following specifications:
 \end{itemize}
 \subsection{Initial speed up}
 \subsection{Speed up after optimization}
+
+\subsection{Comparison}
+	Figure~\ref{fig:results} gives a comparison for the CPU and GPU versions of the program.
+	Note that the models have a large influence on which of the two is faster.
+	
+	These results consist of 200 samples per version, so 400 versions per model.
+	Batching was not used here since none of the models required it and it in fact slowed down the GPU version considerably.
+	
+	\begin{figure}
+		\centering
+		\begin{subfigure}[b]{0.45\textwidth}
+			\includegraphics[width=\textwidth]{results/armadillo}
+			\caption{Model \texttt{armadillo.txt}}
+		\end{subfigure}
+		~%
+		\begin{subfigure}[b]{0.45\textwidth}
+			\includegraphics[width=\textwidth]{results/asiandragon9a_50000}
+			\caption{Model \texttt{asiandragon9a\_50000.txt}}
+		\end{subfigure}
+		
+		\begin{subfigure}[b]{0.45\textwidth}
+			\includegraphics[width=\textwidth]{results/bunny}
+			\caption{Model \texttt{bunny.txt}}
+		\end{subfigure}
+		~%
+		\begin{subfigure}[b]{0.45\textwidth}
+			\includegraphics[width=\textwidth]{results/bunny}
+			\caption{Model \texttt{bunny2.txt}}
+		\end{subfigure}
+		\caption{Comparison of CPU and GPU versions}
+		\label{fig:results}
+	\end{figure}
+	\begin{figure}
+		\ContinuedFloat
+		\center
+		\begin{subfigure}[b]{0.45\textwidth}
+			\includegraphics[width=\textwidth]{results/lucy_5000}
+			\caption{Model \texttt{lucy\_5000.txt}}
+		\end{subfigure}
+		~%
+		\begin{subfigure}[b]{0.45\textwidth}
+			\includegraphics[width=\textwidth]{results/neptune_10000}
+			\caption{Model \texttt{neptune\_10000.txt}}
+		\end{subfigure}
+		
+		\begin{subfigure}[b]{0.45\textwidth}
+			\includegraphics[width=\textwidth]{results/sphere_4000}
+			\caption{Model \texttt{sphere\_4000.txt}}
+		\end{subfigure}
+		\caption[]{Comparison of CPU and GPU versions}
+		\label{fig:results}
+	\end{figure}
