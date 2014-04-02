@@ -692,7 +692,7 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     // preprocess bounding boxes to save space
 	Box* faceBoxes[nFaces];
 	for(int i=0; i<nFaces; i++) {
-		faceBoxes[i] = bvh->boxes[bvh->faceNodeMap[i]];
+		faceBoxes[i] = &bvh->boxes[bvh->faceNodeMap[i]];
 	}
 	
 	size_t avail;
@@ -760,10 +760,10 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     
     
     // Invoke kernel
-    //dim3 threadsPerBlock(16, 16);  // 1024 threads
-    //dim3 numBlocks(nFaces/threadsPerBlock.x, maxSize/threadsPerBlock.y); 
-    int threadsPerBlock = 1;//maxSize;	// deze moeten nog verbeterd
-    int numBlocks = 1;//nFaces;		// allebei dus
+    dim3 threadsPerBlock(16, 16);  // 1024 threads
+    dim3 numBlocks(nFaces/threadsPerBlock.x, maxSize/threadsPerBlock.y); 
+    //int threadsPerBlock = 1;//maxSize;	// deze moeten nog verbeterd
+    //int numBlocks = 1;//nFaces;		// allebei dus
     
     
 
@@ -806,7 +806,6 @@ gettimeofday(&tv, NULL);
 	cudaFree(nPotFace);
 	cudaFree(potFaceFace);
 	cudaFree(disp);
-	cudaFree(fnMap);
 	cudaFree(vCuda);
 	cudaFree(eCuda);
 	cudaFree(fCuda);
