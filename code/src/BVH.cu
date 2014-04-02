@@ -8,6 +8,7 @@
 #include <ctime>
 #include "cuPrintf.itiscu"
 #include <sys/time.h>
+#include <cassert>
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, char *file, int line, bool abort=true)
@@ -703,14 +704,16 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
 	size_t avail;
     size_t total;
     cudaMemGetInfo(&avail, &total);
-    
-    size_t required = nFaces*sizeof(int) + nFaces*maxSize*sizeof(int) + sizeof(Vector) + nFaces*sizeof(int) + nVertices*sizeof(Vertex) + nEdges*sizeof(Edge) + nFaces*sizeof(Face) + nFaces*sizeof(Box) + nVertices*maxSize*sizeof(int) + nVertices*sizeof(int) + nEdges*maxSize*sizeof(int) + nEdges*sizeof(int);
-    
+   	size_t req_constant = sizeof(Vector) + nVertices*sizeof(Vertex) + nEdges*sizeof(Edge) + nFaces*sizeof(Face) + nFaces*sizeof(Box) + nVertices*maxSize*sizeof(int) + nVertices*sizeof(int) + nEdges*maxSize*sizeof(int) + nEdges*sizeof(int); 
+	size_t required = req_constant + nFaces*sizeof(int) + nFaces*maxSize*sizeof(int);
+   
+	assert(req_constant <= avail); //If the constant doesn't fit, this isn't going to get anywhere
+
 	int splitfactor = 1;
 	while(required > avail) {
-        printf("Memory is not going to fit in device memory, thus split\n");
+        printf("Memory is not going to fit in device memory, thus split: %d\n", splitfactor);
 		splitfactor *= 2;
-		required = sizeof(Vector) + nVertices*sizeof(Vertex) + nEdges*sizeof(Edge) + nFaces*sizeof(Face) + nFaces*sizeof(Box) + nVertices*maxSize*sizeof(int) + nVertices*sizeof(int) + nEdges*maxSize*sizeof(int) + nEdges*sizeof(int) + 
+		required = req_constant + 
 		// the input can be split over batches of parallel calculations
 		(nFaces*sizeof(int) + nFaces*maxSize*sizeof(int)) / splitfactor;
 	}
