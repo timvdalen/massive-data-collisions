@@ -1,1 +1,85 @@
 \section{Solution}
+\subsection{Executing on GPU cluster and Timing}
+We performed all our experiments on a remote GPU cluster as described in \ref{sec:system}.
+
+The nodes in this cluster have no GL installed, therefore we could not run the given CPU application directly on any of those.
+This required us to strip all GUI elements from the CPU implementation.
+
+Due to the way the program was organized we were able to do this in a reasonable amount of time by just not compiling the GUI frame classes and removing the references to the GUI from the rest of the code.
+Luckily, only the main method had references to the GUI, the rest of the program was free of GUI implementation details.
+
+In GUI mode, the tool would run the entire algorithm each time a parameter changed.
+Our new program runs the algorithm once, outputs the number of possible collisions left (split up into vector-face and edge-edge) after the execution of the \texttt{breakDown} function (we use these metrics to later compare the GPU implementation to the CPU implementation) and exists.
+
+Another issue was how we would measure the time it took for our program to complete on both the CPU and GPU implementations.
+Because the implementations work fundamentally different, this proved to be quite a challenge.
+
+Our first approach was to count the number of processor clock ticks that have elapsed during the call to the \texttt{breakDown} function.
+However, due to the asynchronous nature of CUDA kernel calls and the way clock ticks are calculated on POSIX compliant operating systems, we decided to use real elapsed time (using the \texttt{gettimeofday} function from \texttt{<sys/time.h>}).
+
+When we switched to counting milliseconds we discovered that the real running time of the CPU implementation in our testing environment (as described in Section~\ref{sec:system}) was frequently below 1 millisecond, even on the highest data set that was available to us.
+Due to this, we started looking in to ways to re-run the experiment multiple times to get a more meaningful number.
+Unfortunately, this proved very difficult since there is a set-up algorithm that needs to be run before the \texttt{breakDown} function can get meaningful results.
+The real running time of the \texttt{breakDown} function is about 0.5\% of that set-up function.
+Because of this, the only way to get results is to run the set-up function an $n$ amount of times, then run the set-up plus the \texttt{breakDown} function $n$ times and subtract the running times to get an approximate time for the real running time of \texttt{breakDown}.
+
+Running the algorithm multiple times was an even harder challenge for the GPU implementation.
+Besides the previously mentioned set-up, the GPU implementation requires some extra set-up for CUDA.
+This mostly consists of copying required data into the GPU device memory.
+Unfortunately, where the actual running time of the algorithm on the GPU is again smaller than 1 millisecond, this copying can take over 1,200 milliseconds, even for small data sets.
+
+When looking for more precise measures, we found out that the compiler on our machine also supported microseconds.
+We were not able to find out a guarantee on how precise this was, but it seemed our best option.
+
+In the end, we added a flag to the program that, if set, outputs the number of microseconds it took for the \texttt{breakDown} function to run and suppresses all other output.
+For the CPU implementation, this time difference is calculated between the start and end of the \texttt{breakDown} function.
+For the GPU implementation, it is calculated between the start of the CUDA threads and when they have \textbf{all} completed.
+Note that we do not measure the time it takes to copy the required data in and out of the GPU device memory, as in a 'real' implementation, where the entire algorithm would run on the GPU, this data would already be available.
+
+After that, we ran both the CPU and the GPU implementations of the program with the flag set $1000$ times to generate enough samples (since we are not sure how precise the measurement in microseconds is).
+With these samples, we construct two boxplots in the R program so we can easily spot if there are any significant differences in the running times of the CPU and GPU implementations.
+
+An example of one of these graphs, in this case for the \texttt{bunny.txt} data set, is shown in Figure~\ref{fig:bunny_box}.
+
+\begin{figure}
+	%TODO
+	\caption{Example boxplots for the \texttt{bunny.txt} data set}
+	\label{fig:bunny_box}
+\end{figure}
+
+\subsection{Distribution over threads in CUDA}
+$<$TODO$>$
+\subsection{Balancing of thread workload}
+The edge-edge pairs are stored in an array of size \textit{nEdges * maxSize}, and for each edge all potential colliding edges are stored. This output array should also not contain any duplicate entries. The approach used in the CPU implementation solved this by checking the ids of the edges. Then, if the id of the first edge A is smaller than that of the second edge B, edge B is stored in the part of the array assigned to edge A. This results in a triangular adjacency matrix, as seen in table \ref{table:balance}. This is not a problem on a sequential CPU implementation, but in a parallel CUDA implementation this would lead to threads that have imbalanced workload distribution, resulting in overall performance degradation. Therefore we needed a method to balance this matrix. We did this using the following method.\\
+\\
+\indent \indent \textbf{if} $(A + B) \% 2 = 0$ \textbf{then} store at $min(A,B)$\\
+\indent \indent \textbf{else} store at $max(A,B)$ \\
+\\
+This generally leads to a better distribution, as seen in table \ref{table:balance}.
+
+\begin{table}[!htb]
+    	\begin{subtable}{.5\linewidth}
+		\centering
+		\begin{tabular}{ c || c | c | c | c }
+			1 & 2 & 3 & 4 & 5 \\
+			2 & 3 & 4 & 5 \\
+			3 & 4 & 5 & \\
+			4 & 5 & & \\
+			5 & & &\\
+		\end{tabular}
+		\caption{Old CPU balance}
+	\end{subtable}%
+    	\begin{subtable}{.5\linewidth}
+		\centering        
+		\begin{tabular}{ c || c | c | c | c }
+			1 & 3 & 5 &  &  \\
+			2 & 1 & 4 &  &\\
+			3 & 2 & 5 &  &\\
+			4 & 1 & 3 &  &\\
+			5 & 2 & 4 &  &\\
+		\end{tabular}
+		\caption{New CUDA balance}
+	\end{subtable} 
+	\caption{Difference between balancing on a complete Edge-Edge adjacency matrix.}
+	\label{table:balance}
+\end{table}
