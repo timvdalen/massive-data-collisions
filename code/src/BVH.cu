@@ -693,8 +693,8 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
 	Box* faceBoxes[nFaces];
 	for(int i=0; i<nFaces; i++) {
 		Box* b = new Box();
-		b.min = bvh->boxes[bvh->faceNodeMap[i]].min;
-		b.max = bvh->boxes[bvh->faceNodeMap[i]].max;
+		b->min = bvh->boxes[bvh->faceNodeMap[i]].min;
+		b->max = bvh->boxes[bvh->faceNodeMap[i]].max;
 		faceBoxes[i] = b;
 	}
 	
