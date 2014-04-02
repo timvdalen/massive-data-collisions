@@ -704,10 +704,11 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
 	int splitfactor = 1;
 	while(required > avail) {
         printf("Memory is not going to fit in device memory, thus split\n");
+		splitfactor *= 2;
 		required = sizeof(Vector) + nVertices*sizeof(Vertex) + nEdges*sizeof(Edge) + nFaces*sizeof(Face) + nFaces*sizeof(Box) + nVertices*maxSize*sizeof(int) + nVertices*sizeof(int) + nEdges*maxSize*sizeof(int) + nEdges*sizeof(int) + 
 		// the input can be split over batches of parallel calculations
-		(nFaces*sizeof(int) + nFaces*maxSize*sizeof(int)) / 2;
-		splitfactor *= 2;
+		(nFaces*sizeof(int) + nFaces*maxSize*sizeof(int)) / splitfactor;
+		
 	}
     
     cudaPrintfInit();
