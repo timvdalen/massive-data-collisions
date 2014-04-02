@@ -690,19 +690,14 @@ __global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potF
 
 void Collisions::breakDown(const BVH* bvh, const Vector& displacement){  
     // preprocess bounding boxes to save space
-	Box* faceBoxes[nFaces];
-	for(int i=0; i<nFaces; i++) {
-		Box* b = new Box();
-		Vector min, max;
-		min.x = bvh->boxes[bvh->faceNodeMap[i]].min.x;
-		min.y = bvh->boxes[bvh->faceNodeMap[i]].min.y;
-		min.z = bvh->boxes[bvh->faceNodeMap[i]].min.z;
-		b->min = min;
-		max.x = bvh->boxes[bvh->faceNodeMap[i]].max.x;
-		max.y = bvh->boxes[bvh->faceNodeMap[i]].max.y;
-		max.z = bvh->boxes[bvh->faceNodeMap[i]].max.z;
-		b->max = max;
-		faceBoxes[i] = b;
+	Box* faceBoxes = new Box[nFaces];
+	for(int i=0; i < nFaces; i++){
+		faceBoxes[i].min.x = bvh->boxes[bvh->faceNodeMap[i]].min.x;
+		faceBoxes[i].min.y = bvh->boxes[bvh->faceNodeMap[i]].min.y;
+		faceBoxes[i].min.z = bvh->boxes[bvh->faceNodeMap[i]].min.z;
+		faceBoxes[i].max.x = bvh->boxes[bvh->faceNodeMap[i]].max.x;
+		faceBoxes[i].max.y = bvh->boxes[bvh->faceNodeMap[i]].max.y;
+		faceBoxes[i].max.z = bvh->boxes[bvh->faceNodeMap[i]].max.z;
 	}
 	
 	size_t avail;
