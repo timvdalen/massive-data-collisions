@@ -607,7 +607,7 @@ void Collisions::storeEdgeEdgeResult(int e1, int e2){
 }
 
 
-__global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potFaceFace, int* nVFOutput, int* nEEOutput, Vector* displacement, int* fnMap, Vertex* vertices, Edge* edges, Face* faces, Box* boxes, int* VFOutput, int* EEOutput)
+__global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potFaceFace, int* nVFOutput, int* nEEOutput, Vector* displacement, Vertex* vertices, Edge* edges, Face* faces, Box* boxes, int* VFOutput, int* EEOutput)
 {
 	int faceA = (blockDim.x * blockIdx.x + threadIdx.x);
 	int j = (blockDim.y * blockIdx.y + threadIdx.y);
@@ -631,7 +631,7 @@ __global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potF
 				vectorAdd(p1, v0, *displacement);
 				vertexBox.addPoint(p1);
 
-				if(vertexBox.intersects(boxes[fnMap[faceB]])){
+				if(vertexBox.intersects(boxes[faceB])){
 					int index = atomicAdd(&nVFOutput[localv[vertex]],1);
 					
 					if(index < maxSize) {
@@ -689,32 +689,37 @@ __global__ void breakDownDeel1(int nFaces, int maxSize, int* nPotFace, int* potF
 }
 
 void Collisions::breakDown(const BVH* bvh, const Vector& displacement){  
-    size_t avail;
+    // preprocess bounding boxes to save space
+	Box* faceBoxes[nFaces];
+	for(int i=0; i<nFaces; i++) {
+		faceBoxes[i] = bvh->boxes[bvh->faceNodeMap[i]];
+	}
+	
+	size_t avail;
     size_t total;
     cudaMemGetInfo(&avail, &total);
-   
-    printf("Total bytes: %zu, available: %zu\n", total, avail);
-
-    size_t required = nFaces*sizeof(int) + nFaces*maxSize*sizeof(int) + sizeof(Vector) + nFaces*sizeof(Vertex) + nEdges*sizeof(Edge) + nFaces*sizeof(Face) + bvh->nNodes*sizeof(Box) + nVertices*maxSize*sizeof(int) + nVertices*sizeof(int) + nEdges*maxSize*sizeof(int) + nEdges*sizeof(int);
     
-    if(required > avail){
-        printf("Memory is not going to fit in device memory\n");
-    }else{
-        printf("Memory is going to fit in device memory\n");
-    }
-
+    size_t required = nFaces*sizeof(int) + nFaces*maxSize*sizeof(int) + sizeof(Vector) + nFaces*sizeof(int) + nVertices*sizeof(Vertex) + nEdges*sizeof(Edge) + nFaces*sizeof(Face) + bvh->nNodes*sizeof(Box) + nVertices*maxSize*sizeof(int) + nVertices*sizeof(int) + nEdges*maxSize*sizeof(int) + nEdges*sizeof(int);
+    
+	int splitfactor = 1;
+	while(required > avail) {
+        printf("Memory is not going to fit in device memory, thus split\n");
+		required = sizeof(Vector) + nVertices*sizeof(Vertex) + nEdges*sizeof(Edge) + nFaces*sizeof(Face) + nFaces*sizeof(Box) + nVertices*maxSize*sizeof(int) + nVertices*sizeof(int) + nEdges*maxSize*sizeof(int) + nEdges*sizeof(int) + 
+		// the input can be split over batches of parallel calculations
+		(nFaces*sizeof(int) + nFaces*maxSize*sizeof(int)) / 2;
+		splitfactor *= 2;
+	}
+    
     cudaPrintfInit();
 
     // Allocate vectors in device memory
     int* nPotFace;
-    gpuErrchk( cudaMalloc(&nPotFace, nFaces*sizeof(int)));
+    gpuErrchk(cudaMalloc(&nPotFace, nFaces*sizeof(int)));
     int* potFaceFace;
     gpuErrchk(cudaMalloc(&potFaceFace, nFaces*maxSize*sizeof(int)));
     Vector* disp;
     gpuErrchk(cudaMalloc(&disp, sizeof(Vector)));
 	
-    int* fnMap;
-    gpuErrchk(cudaMalloc(&fnMap, nFaces*sizeof(int)));
     Vertex* vCuda;
     gpuErrchk(cudaMalloc(&vCuda, nVertices*sizeof(Vertex)));
     Edge* eCuda;
@@ -722,7 +727,7 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     Face* fCuda;
     gpuErrchk(cudaMalloc(&fCuda, nFaces*sizeof(Face)));
     Box* bCuda;
-    gpuErrchk(cudaMalloc(&bCuda, bvh->nNodes*sizeof(Box)));
+    gpuErrchk(cudaMalloc(&bCuda, nFaces*sizeof(Box)));
 	
     int* VFOutput;
     gpuErrchk(cudaMalloc(&VFOutput, nVertices*maxSize*sizeof(int)));
@@ -732,7 +737,7 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     gpuErrchk(cudaMalloc(&EEOutput, nEdges*maxSize*sizeof(int)));
     int* nEEOutput;
     gpuErrchk(cudaMalloc(&nEEOutput, nEdges*sizeof(int)));
-
+	
     struct timeval tv;
     gettimeofday(&tv, NULL);
     unsigned long long time_before_incopy = (unsigned long long)(tv.tv_sec) * 1000000 + (unsigned long long)(tv.tv_usec);
@@ -745,11 +750,10 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     gpuErrchk(cudaMemcpy(nVFOutput, nPotentialVertexFaces, nVertices*sizeof(int), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(nEEOutput, nPotentialEdgeEdges, nEdges*sizeof(int), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(disp, &displacement, sizeof(Vector), cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(fnMap, bvh->faceNodeMap, nFaces*sizeof(int), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(vCuda, bvh->mesh->vertices, nVertices*sizeof(Vertex), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(eCuda, bvh->mesh->edges, nEdges*sizeof(Edge), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(fCuda, bvh->mesh->faces, nFaces*sizeof(Face), cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(bCuda, bvh->boxes, bvh->nNodes*sizeof(Box), cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(bCuda, faceBoxes, nFaces*sizeof(Box), cudaMemcpyHostToDevice));
     gettimeofday(&tv, NULL);
     unsigned long long time_after_incopy = (unsigned long long)(tv.tv_sec) * 1000000 + (unsigned long long)(tv.tv_usec);
     
@@ -768,7 +772,7 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
 
    
 
-    breakDownDeel1<<<numBlocks, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, nVFOutput, nEEOutput, disp, fnMap, vCuda, eCuda, fCuda, bCuda, VFOutput, EEOutput);
+    breakDownDeel1<<<numBlocks, threadsPerBlock>>>(nFaces, maxSize, nPotFace, potFaceFace, nVFOutput, nEEOutput, disp, vCuda, eCuda, fCuda, bCuda, VFOutput, EEOutput);
 
 	gpuErrchk(cudaPeekAtLastError());
 	gpuErrchk(cudaDeviceSynchronize());

@@ -48,7 +48,8 @@ An example of one of these graphs, in this case for the \texttt{bunny.txt} data 
 \end{figure}
 
 \subsection{Distribution over threads in CUDA}
-$<$TODO$>$
+The first approach to distribute the calculation over the threads in the GPU, was just to let each thread do the calculations for one singel face-face pair, to the corresponding vertex-face and edge-edge pairs. We would assign 1024 threads per block, in a 16x16 matrix, and then have the number of blocks calculated as follows: for the x-direction we used \texttt{nFaces / threadsPerBlock.x} and in the y-direction \texttt{maxSize / threadsPerBlock.y}. This way we have \texttt{nFaces * maxSize} threads, which corresponds to the maximum amount of potential face-face pairs. \\
+%However, this approach could spawn too many threads, in which case we need to do more calculations per thread.
 \subsection{Balancing of thread workload}
 The edge-edge pairs are stored in an array of size \textit{nEdges * maxSize}, and for each edge all potential colliding edges are stored. This output array should also not contain any duplicate entries. The approach used in the CPU implementation solved this by checking the ids of the edges. Then, if the id of the first edge A is smaller than that of the second edge B, edge B is stored in the part of the array assigned to edge A. This results in a triangular adjacency matrix, as seen in table \ref{table:balance}. This is not a problem on a sequential CPU implementation, but in a parallel CUDA implementation this would lead to threads that have imbalanced workload distribution, resulting in overall performance degradation. Therefore we needed a method to balance this matrix. We did this using the following method.\\
 \\
