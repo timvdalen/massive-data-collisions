@@ -10,14 +10,14 @@ void printMetrics(const Collisions* collisions){
 		sumEdgeEdge += collisions->nPotentialEdgeEdges[i];
 	}
 
-	std::cout << "Total number of vertex-face: " << sumVertexFace << std::endl << "Total number of edge-edge: " << sumEdgeEdge << std::endl;
+//	std::cout << "Total number of vertex-face: " << sumVertexFace << std::endl << "Total number of edge-edge: " << sumEdgeEdge << std::endl;
 }
 
 int main(int argc, char** argv){
 	if(argc == 2){
 
 		BVH* bvh = new BVH(argv[1]);
-		int maxSize = 5000;
+		int maxSize = 500;
 		Collisions* collisions = new Collisions(bvh, maxSize);
 
 		Vector displ;
