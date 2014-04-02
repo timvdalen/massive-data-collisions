@@ -1,8 +1,37 @@
 \section{Solution}
 \subsection{Executing on GPU cluster and Timing}
-We performed all our experiments on a remote GPU cluster as described in \ref{sec:system}. This cluster however has no GL installed, therefore we could not run the given application on it. This required us to strip all GUI elements from the CPU implementation. \\
-Another issue was how we would measure the time it took for our program to complete.\\
-$<$TODO$>$
+We performed all our experiments on a remote GPU cluster as described in \ref{sec:system}.
+This cluster however has no GL installed, therefore we could not run the given application on it.
+This required us to strip all GUI elements from the CPU implementation.
+
+%TODO
+
+Another issue was how we would measure the time it took for our program to complete.
+
+Our first approach was to count the number of processor clock ticks that have elapsed during the call to the \texttt{breakDown} function.
+However, due to the asynchronous nature of CUDA kernel calls, we decided to use real elapsed time (using the \texttt{gettimeofday} function from \texttt{<sys/time.h>}).
+
+When we switched to counting milliseconds we discovered that the real running time of the CPU implementation in our testing environment (as described in Section~\ref{sec:system}) was frequently below 1 millisecond, even on the highest data set that was available to us.
+Due to this, we started looking in to ways to re-run the experiment multiple times to get a more meaningful number.
+Unfortunately, this proved very difficult since there is a set-up algorithm that needs to be run before the \texttt{breakDown} function can get meaningful results.
+The real running time of the \texttt{breakDown} function is about 0.5% of that set-up function.
+Because of this, the only way to get results is to run the set-up function an $n$ amount of times, then run the set-up plus the \texttt{breakDown} function $n$ times and substract the running times to get an approximate time for the real running time of \texttt{breakDown}.
+
+Running the algorithm multiple times was an even harder challange for the GPU implementation.
+Besides the previously mentioned set-up, the GPU implementation requires some extra set-up for CUDA.
+This mostly consists of copying required data into the GPU device memory.
+Unfortunately, where the actual running time of the algorithm on the GPU is again smaller than 1 millisecond, this copying can take over 1,200 milliseconds, even for small data sets.
+We decided to not pursue this method of measuring further, since the order of the running times for set-up and execution were so far apart we did not feel we could trust the resulting approximation.
+
+While working on the millisecond approximation of the running time of the GPU implementation, we were forced to solve the synchronization problem for the CUDA device.
+Because of this we went back to our first approach of measuring clock ticks, which is a far more precise measure.
+
+In the end, we settled on using the number of CPU ticks elapsed between the start and end of the \texttt{breakDown} function for the CPU implementation and the number of CPU ticks elapsed between the start and completion of \textbf{all} GPU threads for the GPU implementation.
+Note that we do not measure the time it takes to copy the required data in and out of the GPU device memory, as in a 'real' implementation, where the entire algorithm would run on the GPU, this data would already be available.
+
+We are aware of the fact that counting CPU ticks is far from a perfect metric as it can be influenced by a large number of factors beyond our control.
+However, it seemed like the best metric available.
+
 \subsection{Distribution over threads in CUDA}
 $<$TODO$>$
 \subsection{Balancing of thread workload}
