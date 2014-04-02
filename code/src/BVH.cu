@@ -692,7 +692,9 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     size_t avail;
     size_t total;
     cudaMemGetInfo(&avail, &total);
-    
+   
+    printf("Total bytes: %zu, available: %zu\n", total, avail);
+
     size_t required = nFaces*sizeof(int) + nFaces*maxSize*sizeof(int) + sizeof(Vector) + nFaces*sizeof(Vertex) + nEdges*sizeof(Edge) + nFaces*sizeof(Face) + bvh->nNodes*sizeof(Box) + nVertices*maxSize*sizeof(int) + nVertices*sizeof(int) + nEdges*maxSize*sizeof(int) + nEdges*sizeof(int);
     
     if(required > avail){
@@ -700,7 +702,7 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     }else{
         printf("Memory is going to fit in device memory\n");
     }
-    
+
     cudaPrintfInit();
 
     // Allocate vectors in device memory
@@ -733,7 +735,7 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
 
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    unsigned long long time_before_incopy = (unsigned long long)(tv.tv_sec) * 1000 + (unsigned long long)(tv.tv_usec) / 1000;
+    unsigned long long time_before_incopy = (unsigned long long)(tv.tv_sec) * 1000000 + (unsigned long long)(tv.tv_usec);
 
 
 
@@ -749,7 +751,7 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     gpuErrchk(cudaMemcpy(fCuda, bvh->mesh->faces, nFaces*sizeof(Face), cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(bCuda, bvh->boxes, bvh->nNodes*sizeof(Box), cudaMemcpyHostToDevice));
     gettimeofday(&tv, NULL);
-    unsigned long long time_after_incopy = (unsigned long long)(tv.tv_sec) * 1000 + (unsigned long long)(tv.tv_usec) / 1000;
+    unsigned long long time_after_incopy = (unsigned long long)(tv.tv_sec) * 1000000 + (unsigned long long)(tv.tv_usec);
     
     
     // Invoke kernel
@@ -762,7 +764,7 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
 
 
   gettimeofday(&tv, NULL);
-  unsigned long long time_before = (unsigned long long)(tv.tv_sec) * 1000 + (unsigned long long)(tv.tv_usec) / 1000;
+  unsigned long long time_before = (unsigned long long)(tv.tv_sec) * 1000000 + (unsigned long long)(tv.tv_usec);
 
    
 
@@ -772,12 +774,12 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
 	gpuErrchk(cudaDeviceSynchronize());
 
 gettimeofday(&tv, NULL);
-  unsigned long long time_after = (unsigned long long)(tv.tv_sec) * 1000 + (unsigned long long)(tv.tv_usec) / 1000;
+  unsigned long long time_after = (unsigned long long)(tv.tv_sec) * 1000000 + (unsigned long long)(tv.tv_usec);
 
-  printf("%llu ms elapsed\n", time_after - time_before);
+  printf("%llu us elapsed\n", time_after - time_before);
 
   gettimeofday(&tv, NULL);
-  unsigned long long time_before_outcopy = (unsigned long long)(tv.tv_sec) * 1000 + (unsigned long long)(tv.tv_usec) / 1000;
+  unsigned long long time_before_outcopy = (unsigned long long)(tv.tv_sec) * 1000000 + (unsigned long long)(tv.tv_usec);
 
 
     // Copy result from device memory to host memory
@@ -788,11 +790,11 @@ gettimeofday(&tv, NULL);
 	cudaMemcpy(nPotentialEdgeEdges, nEEOutput, nEdges*sizeof(int), cudaMemcpyDeviceToHost);
 	
       	gettimeofday(&tv, NULL);
-  unsigned long long time_after_outcopy = (unsigned long long)(tv.tv_sec) * 1000 + (unsigned long long)(tv.tv_usec) / 1000;
+  unsigned long long time_after_outcopy = (unsigned long long)(tv.tv_sec) * 1000000 + (unsigned long long)(tv.tv_usec);
 
 
-  	printf("%llu ms incopy\n", time_after_incopy - time_before_incopy);
-  	printf("%llu ms outcopy\n", time_after_outcopy - time_before_outcopy);
+  	printf("%llu us incopy\n", time_after_incopy - time_before_incopy);
+  	printf("%llu us outcopy\n", time_after_outcopy - time_before_outcopy);
 
 
 	// free device memory
