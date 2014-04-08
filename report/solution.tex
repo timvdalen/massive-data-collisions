@@ -92,6 +92,9 @@ This generally leads to a better distribution, as seen in table \ref{table:balan
 	\label{table:balance}
 \end{table}
 
+\subsection{Parallel access to output arrays}
+Since all the threads try to access the output arrays at the same time, we have to make sure that the state of the output arrays will stay consistent and make sure that calculations are done atomically. We came up with a smart trick to keep everything consistent: We need to use 2 arrays per output type, one to hold the output, and one to hold the number of collisions per vertex/edge, so that we can index the respective output array. CUDA has special atomic functions and the one we will use is called \texttt{atomicAdd()}. It will be used to increase the number of collisions in the count array. The function will return the result of the addition, thus the new index that can be used in the thread that called the atomic addition function. The trick is that the atomic add will be done atomically, so nothing can go wrong there, but the resulting index will be different for each of the parallel threads. They can now freely read/write in the output array at the given index, since no other thread will be given this index.
+
 \subsection{Memory problems}
 Unfortunately, after implementing everything, we could run the program for the \texttt{bunny.txt} data set, but all the other datasets required too much data in the memory of the GPU. First we will give an overview of the data we need, and then show how we have tried to address this problem. The data we need is listed below.
 
