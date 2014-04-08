@@ -757,7 +757,7 @@ void Collisions::breakDown(const BVH* bvh, const Vector& displacement){
     gpuErrchk(cudaMemcpy(bCuda, faceBoxes, nFaces*sizeof(Box), cudaMemcpyHostToDevice));
     
     // Invoke kernel
-    dim3 threadsPerBlock(16, 16);  // 1024 threads
+    dim3 threadsPerBlock(16, 16);  // 256 threads
     dim3 numBlocks(nFaces/threadsPerBlock.x, maxSize/threadsPerBlock.y); 
     //int threadsPerBlock = 1;//maxSize;	// deze moeten nog verbeterd
     //int numBlocks = 1;//nFaces;		// allebei dus
