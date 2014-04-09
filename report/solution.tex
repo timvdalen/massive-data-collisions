@@ -63,7 +63,7 @@ The edge-edge pairs are stored in an array of size \textit{nEdges * maxSize}, an
 \indent \indent \textbf{if} $(A + B) \% 2 = 0$ \textbf{then} store at $min(A,B)$\\
 \indent \indent \textbf{else} store at $max(A,B)$ \\
 \\
-This generally leads to a better distribution, as seen in table \ref{table:balance}.
+This generally leads to a better distribution, as seen in Table \ref{table:balance}.
 
 \begin{table}[!htb]
     	\begin{subtable}{.5\linewidth}
@@ -91,6 +91,8 @@ This generally leads to a better distribution, as seen in table \ref{table:balan
 	\caption{Difference between balancing on a complete Edge-Edge adjacency matrix.}
 	\label{table:balance}
 \end{table}
+
+To speed up the computations a bit, we also change which threads do which computations. In the CPU version, the thread that does the calculations for the edge with the lowest index will get all the calculations for this thread. If we look at Table \ref{table:balance}, we see that the thread that does calculations for edge 1 will do more calculations than the thread for edge 5. We make sure that not only the storing is balanced, but also the compuations, so that in the new CUDA implementation, Some threads will no longer take more computation time and therefore keep the program as a whole waiting.
 
 \subsection{Parallel access to output arrays}
 Since all the threads try to access the output arrays at the same time, we have to make sure that the state of the output arrays will stay consistent and make sure that calculations are done atomically. We came up with a smart trick to keep everything consistent: We need to use 2 arrays per output type, one to hold the output, and one to hold the number of collisions per vertex/edge, so that we can index the respective output array. CUDA has special atomic functions and the one we will use is called \texttt{atomicAdd()}. It will be used to increase the number of collisions in the count array. The function will return the result of the addition, thus the new index that can be used in the thread that called the atomic addition function. The trick is that the atomic add will be done atomically, so nothing can go wrong there, but the resulting index will be different for each of the parallel threads. They can now freely read/write in the output array at the given index, since no other thread will be given this index.
