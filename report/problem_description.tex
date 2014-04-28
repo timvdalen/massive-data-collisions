@@ -11,10 +11,10 @@ The goal of the program is to detect which faces potentially collide, without do
 	\label{fig:process}
 \end{figure}
 
-The procedure that we are going the look into is called \texttt{breakDown}. It is part of the Collisions object and it does the second part of the calculations. This means that the potential face-face pairs are already calculated/available and we want to calculate vertex-face and edge-edge pairs accordingly. The procedure takes a BHV and a vector (the displacement) as input. 
+The procedure that we are going the look into is called \texttt{breakDown}. It is part of the Collisions object and it does the second part of the calculations. This means that the potential face-face pairs are already calculated/available and we want to calculate vertex-face and edge-edge pairs accordingly. The procedure takes a BHV and a vector (the displacement) as input. Algorithm \ref{alg:breakseq} shows the pseudocode for the procedure.
 
 \begin{algorithm}
-\caption{breakDown (sequential)}\label{breakseq}
+\caption{breakDown (sequential)}\label{alg:breakseq}
 \begin{algorithmic}[1]
 \Procedure{breakDown}{$bhv,vector$}
     \For{$faceA\gets 0, \#faces$}

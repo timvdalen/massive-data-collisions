@@ -2,11 +2,12 @@
 In this section we will present the solution we came up with to translate the sequential algorithm to a parallel version. The first subsection will elaborate on the algorithm itself and its time complexity. When the algorithm has been proposed, we will look into how the algorithm is distributed over GPU threads, how we balanced the output more equally, and solving parallel access from multiple threads to common resources.
 
 \subsection{Parallel algorithm}
+The idea behind the parallellisation, is that on a GPU we have many small kernels, that each can do a part of the calculations. In our parallel algoriothm we try to do the calculations for each face-face pair on one single thread. The pseudocode for the parallel algorithm can be found in Algorithm \ref{alg:breakpar}.
 
 \begin{algorithm}
-\caption{breakDown (parallel)}\label{breakpar}
+\caption{breakDown (parallel)}\label{alg:breakpar}
 \begin{algorithmic}[1]
-\Procedure{breakDown}{$faceFaceInput, mappings, boundingBoxes, displacement $}
+\Procedure{breakDown}{$faceFaceInput, mappings, boundingBoxes, displacement, maxSize$}
     \State $faceA \gets threadIndex.X$
     \State $i \gets threadIndex.Y$
     \State $faceB \gets faceIndex(i)$ \Comment{for each pair with faceA, find index of other face}
@@ -30,13 +31,20 @@ In this section we will present the solution we came up with to translate the se
 \end{algorithmic}
 \end{algorithm}
 
+Comparing this algorithm to the one in Algorithm \ref{alg:breakseq}, we see in Line 2 and 3 that the loops have disappeared. Each thread on the GPU does another part of the calculations, and Line 2-3 establish that each thread does a different calculations. Section \ref{subsec:threads} will elaborate further on how the calculations are distributed over the threads. The \texttt{if}-statement on Line 13, balances out the edge-edge calculations over the threads in a better way than the sequential version, where this did not really mattered. We will be further elaborated on the balancing in Section \ref{subsec:balance}.
+
+ The parallel version also has more input variables. This is due to the fact that on the CPU version, all the data structures and objects can just live in memory all the time, while we should explicitely state which data we want te export from the host system to the GPU. The function in Line 4 queries the \texttt{faceFaceInput} parameter, the \texttt{get}-functions use the \texttt{mappings}, and the \texttt{check}-functions need the \texttt{boundingBoxes}. Figure \ref{fig:kernel} shows how a single kernel takes many inputs and creates the vertex-face and edge-edge pairs. We elaborate on the details of the input in Section \ref{subsec:memory}, where we discuss what has to happen when all this data does not fit in the memory of the GPU.
+
 \begin{figure}
 	\includegraphics{threadbox.pdf}
 	\caption{Input and Output of a GPU kernel}
 	\label{fig:kernel}
 \end{figure}
 
+As for the time complexity of the new algorithm, it is the same as the former one, but we have to leave out the loops. This means that each kernel needs a constant time to do the computations $O(1)$. Since all kernels do this in parallel, we now have a worst case bound that is a lot lower than the one for the sequential algorithm.
+
 \subsection{Distribution over threads in CUDA}
+\label{subsec:threads}
 The first approach to distribute the calculation over the threads in the GPU, is to let each thread do the calculations for one single face-face pair, to the corresponding vertex-face and edge-edge pairs. Figure \ref{fig:threaddist} gives an overview of this setup. We assign 256 threads per block, in a 16x16 matrix, and then have the number of blocks calculated as follows: for the x-direction we used \texttt{\#faces / threadsPerBlock.x} and in the y-direction \texttt{maxSize / threadsPerBlock.y}. This way we have \texttt{\#faces * maxSize} threads, which corresponds to the maximum amount of potential face-face pairs. Since we can have 65535 blocks in one direction, and \texttt{maxSize / 16} is not the bounding factor, only \texttt{\#faces / 16} is bounded to being lower than 65535. We can still solve this bound, but we address this in future work.\\
 
 \begin{figure}
@@ -46,6 +54,7 @@ The first approach to distribute the calculation over the threads in the GPU, is
 \end{figure}
 
 \subsection{Balancing of thread workload}
+\label{subsec:balance}
 The edge-edge pairs are stored in an array of size \textit{\#edges * maxSize}, and for each edge all potential colliding edges are stored. This output array should also not contain any duplicate entries. The approach used in the CPU implementation solved this by checking the ids of the edges. Then, if the id of the first edge A is smaller than that of the second edge B, edge B is stored in the part of the array assigned to edge A. This results in a triangular adjacency matrix, as seen in table \ref{table:balance}. This is not a problem on a sequential CPU implementation, but in a parallel CUDA implementation this would lead to threads that have imbalanced workload distribution, resulting in overall performance degradation. Therefore we needed a method to balance this matrix. We did this using the following method.\\
 \\
 \indent \indent \textbf{if} $(A + B) \% 2 = 0$ \textbf{then} store at $min(A,B)$\\
@@ -85,8 +94,11 @@ To speed up the computations a bit, we also change which threads do which comput
 \subsection{Parallel access to output arrays}
 Since all the threads try to access the output arrays at the same time, we have to make sure that the state of the output arrays will stay consistent and make sure that calculations are done atomically. We came up with a smart trick to keep everything consistent: We need to use 2 arrays per output type, one to hold the output, and one to hold the number of collisions per vertex/edge, so that we can index the respective output array. CUDA has special atomic functions and the one we will use is called \texttt{atomicAdd()}. It will be used to increase the number of collisions in the count array. The function will return the result of the addition, thus the new index that can be used in the thread that called the atomic addition function. The trick is that the atomic add will be done atomically, so nothing can go wrong there, but the resulting index will be different for each of the parallel threads. They can now freely read/write in the output array at the given index, since no other thread will be given this index.
 
+In practice, using the \texttt{atomicAdd()} will lead to a worse performance, as it the function is more complex. However, we cannot do without this functionality so we take the decrease in performance for grated. Another performance issue is when a lot of threads want to access the same resource. In this case the parallellism is nullified by the fact that the atomic function sequentializes this part of the program. We neither have another choice in this case, so we just have to deal with this performance issue. 
+
 \section{Discussion}
 \subsection{Memory problems}
+\label{subsec:memory}
 Unfortunately, after implementing everything, we could run the program for the smallest data set (\texttt{bunny.txt}), but all the other datasets required too much data in the memory of the GPU. First we will give an overview of the data we need, and then show how we have tried to address this problem. The data we need is listed below.
 
 \begin{itemize}
@@ -105,10 +117,10 @@ The second solution has to do with the variable \texttt{maxSize}, which was set 
 \subsection{Batches}
 Even if the solutions for the memory problem in the previous section are not enough to get the program running, we can split the input array, so that we save some memory there. The downside is that we do a lot more smaller transfers from the host to the device, and we use less parallellism, since there is less data available for parallel execution in each batch. So there is a big tradeoff to be made here, but it might be neccessary to get the program running on the GPU, for certain data sets.\\
 
-The idea of the batching is as follows: We keep on splitting the data in 2, so the first split gives us 2 half input arrays, the second split 4 kwarter input arrays and so on. As soon as we find that one part of the input array fits in memory with the rest of the data, we stop the splitting proces. We then transfer only reserve memory for and transfer the smaller part of the input onto the GPU. There are less threads processing at this point, but there is still parallellism. When all the threads have finished, we load the next part of the input in the GPU memory and make a new kernel call. This process is repeated until all the parts of the input have been processed, At the end of the input array we have to be careful, because the last remainder of the input does not necessarily have the same size as its predecessors. This means that we have to make sure that we only process the remaining part, and not the (no longer useful) data that is in the remaining space we reserved in GPU memory.
+The idea of the batching is as follows: We keep on splitting the data in 2, so the first split gives us 2 half input arrays, the second split 4 kwarter input arrays and so on. As soon as we find that one part of the input array fits in memory with the rest of the data, we stop the splitting proces. We then transfer only reserve memory for and transfer the smaller part of the input onto the GPU. There are less threads processing at this point, but there is still parallellism. When all the threads have finished, we load the next part of the input in the GPU memory and make a new kernel call. This process is repeated until all the parts of the input have been processed, At the end of the input array we have to be careful, because the last remainder of the input does not necessarily have the same size as its predecessors. This means that we have to make sure that we only process the remaining part, and not the (no longer useful) data that is in the remaining space we reserved in GPU memory. Pseudocode can be found in Algorithm \ref{alg:batch}. Note that in Line 9, \texttt{faceFaceInput.i} means the $i$-th part of the \texttt{faceFaceInput} array.
 
 \begin{algorithm}
-\caption{batching}\label{batch}
+\caption{batching}\label{alg:batch}
 \begin{algorithmic}[1]
 \Procedure{batchingBreakDown}{$faceFaceInput, mappings, boundingBoxes, displacement $}
     \State $splitfactor \gets 1$
@@ -118,25 +130,18 @@ The idea of the batching is as follows: We keep on splitting the data in 2, so t
     \EndWhile
     \For{$i \gets 0, splitfactor$}
         \State load all the parameters in GPU memory
-        \State breakDown($faceFaceInput, mappings, boundingBoxes, displacement $) \Comment{parallel version}
+        \State breakDown($faceFaceInput.i, mappings, boundingBoxes, displacement $) \Comment{parallel version}
     \EndFor
 \EndProcedure
 \end{algorithmic}
 \end{algorithm}
 
+This change can drastically decrease the performance of the procedure as a whole. First of all, it adds a lot of overhead to the actual algorithm, in calculating the splitfactor, and also the loading of parameters into GPU memory, part by part. Besides the overhead, the degree of parallellism and the time complexity fluctuates with the splitfactor. In the worst case it is fully sequential and we have a time complexity of $O(\#faces *  maxSize)$ plus the overhead, which is worse than the sequential algorithm.
+
 \subsection{Executing on GPU cluster and Timing}
 We performed all our experiments on a remote GPU cluster as described in \ref{sec:system}.
 
-The nodes in this cluster have no GL installed, therefore we could not run the given CPU application directly on any of those.
-This required us to strip all GUI elements from the CPU implementation.
-
-Due to the way the program was organized we were able to do this in a reasonable amount of time by just not compiling the GUI frame classes and removing the references to the GUI from the rest of the code.
-Luckily, only the main method had references to the GUI, the rest of the program was free of GUI implementation details.
-
-In GUI mode, the tool would run the entire algorithm each time a parameter changed.
-Our new program runs the algorithm once, outputs the number of possible collisions left (split up into vector-face and edge-edge) after the execution of the \texttt{breakDown} function (we use these metrics to later compare the GPU implementation to the CPU implementation) and exists.
-
-Another issue was how we would measure the time it took for our program to complete on both the CPU and GPU implementations.
+An issue was how we would measure the time it took for our program to complete on both the CPU and GPU implementations.
 Because the implementations work fundamentally different, this proved to be quite a challenge.
 
 Our first approach was to count the number of processor clock ticks that have elapsed during the call to the \texttt{breakDown} function.
