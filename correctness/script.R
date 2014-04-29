@@ -11,7 +11,7 @@ rownames(counts_matrix) <- c("GPU", "CPU")
 counts <- as.table(counts_matrix)
 
 pdf(paste(name, ".pdf", sep=""))
-barplot(counts, xlab="Collisions left", col=c("darkblue", "red"), legend = rownames(counts), beside=TRUE, main=paste("Comparison for", name), args.legend=list(x=2))
+barplot(counts, xlab="Collisions left", col=c("darkblue", "red"), legend = rownames(counts), beside=TRUE, args.legend=list(x=2))
 dev.off()
 ###
 
@@ -24,7 +24,7 @@ rownames(counts_matrix) <- c("GPU", "CPU")
 counts <- as.table(counts_matrix)
 
 pdf(paste(name, ".pdf", sep=""))
-barplot(counts, xlab="Collisions left", col=c("darkblue", "red"), legend = rownames(counts), beside=TRUE, main=paste("Comparison for", name), args.legend=list(x=2))
+barplot(counts, xlab="Collisions left", col=c("darkblue", "red"), legend = rownames(counts), beside=TRUE, args.legend=list(x=2))
 dev.off()
 ###
 
@@ -50,7 +50,7 @@ rownames(counts_matrix) <- c("GPU", "CPU")
 counts <- as.table(counts_matrix)
 
 pdf(paste(name, ".pdf", sep=""))
-barplot(counts, xlab="Collisions left", col=c("darkblue", "red"), legend = rownames(counts), beside=TRUE, main=paste("Comparison for", name), args.legend=list(x=2))
+barplot(counts, xlab="Collisions left", col=c("darkblue", "red"), legend = rownames(counts), beside=TRUE, args.legend=list(x=2))
 dev.off()
 ###
 
@@ -63,7 +63,7 @@ rownames(counts_matrix) <- c("GPU", "CPU")
 counts <- as.table(counts_matrix)
 
 pdf(paste(name, ".pdf", sep=""))
-barplot(counts, xlab="Collisions left", col=c("darkblue", "red"), legend = rownames(counts), beside=TRUE, main=paste("Comparison for", name), args.legend=list(x=2))
+barplot(counts, xlab="Collisions left", col=c("darkblue", "red"), legend = rownames(counts), beside=TRUE, args.legend=list(x=2))
 dev.off()
 ###
 
@@ -76,7 +76,7 @@ rownames(counts_matrix) <- c("GPU", "CPU")
 counts <- as.table(counts_matrix)
 
 pdf(paste(name, ".pdf", sep=""))
-barplot(counts, xlab="Collisions left", col=c("darkblue", "red"), legend = rownames(counts), beside=TRUE, main=paste("Comparison for", name), args.legend=list(x=2))
+barplot(counts, xlab="Collisions left", col=c("darkblue", "red"), legend = rownames(counts), beside=TRUE, args.legend=list(x=2))
 dev.off()
 ###
 
@@ -89,6 +89,6 @@ rownames(counts_matrix) <- c("GPU", "CPU")
 counts <- as.table(counts_matrix)
 
 pdf(paste(name, ".pdf", sep=""))
-barplot(counts, xlab="Collisions left", col=c("darkblue", "red"), legend = rownames(counts), beside=TRUE, main=paste("Comparison for", name), args.legend=list(x=2))
+barplot(counts, xlab="Collisions left", col=c("darkblue", "red"), legend = rownames(counts), beside=TRUE, args.legend=list(x=2))
 dev.off()
 ###
