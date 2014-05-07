@@ -10,7 +10,7 @@ The idea behind the parallellisation, is that on a GPU we have many small kernel
 \Procedure{breakDown}{$faceFaceInput, mappings, boundingBoxes, displacement, maxSize$}
     \State $faceA \gets threadIndex.X$
     \State $i \gets threadIndex.Y$
-    \State $faceB \gets faceIndex(i)$ \Comment{for each pair with faceA, find index of other face}
+    \State $faceB \gets faceIndex(faceA, i)$ \Comment{for each pair with faceA, find index of other face}
     \State $vertices \gets getVertices(faceA)$
     \State $edgesA \gets getEdges(faceA)$
     \State $edgesB \gets getEdges(faceB)$
@@ -41,11 +41,15 @@ Comparing this algorithm to the one in Algorithm \ref{alg:breakseq}, we see in L
 	\label{fig:kernel}
 \end{figure}
 
-As for the time complexity of the new algorithm, it is the same as the former one, but we have to leave out the loops. This means that each kernel needs a constant time to do the computations $O(1)$. Since all kernels do this in parallel, we now have a worst case bound that is a lot lower than the one for the sequential algorithm.
+As for the time complexity of the new algorithm, it is the same as the former one, but we have to leave out the loops. This means that each kernel needs a constant time to do the computations $O(1)$. Since all kernels do this in parallel, we now have a worst case bound that is a lot lower than the one for the sequential algorithm.\\
+
+Note that in Line 2 \texttt{faceA} is calculated directly from the threadIndex, and is using in Lines 4-6 to read from arrays in memory. Since \texttt{faceA} is different for each thread, we get coalesced access to all the arrays that are read in these lines.
 
 \subsection{Distribution over threads in CUDA}
 \label{subsec:threads}
 The first approach to distribute the calculation over the threads in the GPU, is to let each thread do the calculations for one single face-face pair, to the corresponding vertex-face and edge-edge pairs. Figure \ref{fig:threaddist} gives an overview of this setup. We assign 256 threads per block, in a 16x16 matrix, and then have the number of blocks calculated as follows: for the x-direction we used \texttt{\#faces / threadsPerBlock.x} and in the y-direction \texttt{maxSize / threadsPerBlock.y}. This way we have \texttt{\#faces * maxSize} threads, which corresponds to the maximum amount of potential face-face pairs. Since we can have 65535 blocks in one direction, and \texttt{maxSize / 16} is not the bounding factor, only \texttt{\#faces / 16} is bounded to being lower than 65535. We can still solve this bound, but we address this in future work.\\
+
+The amount of threads per block is chosen using the CUDA GPU Occupancy Calculator. Using 256 threads per block, having 32 registers per thread and 4096 bytes of shared memory, we get 8 blocks per SM and 8 warps per block, which leads to 64 warps per SM, which is the physical maximum. Using this setup we have 100\% occupancy.
 
 \begin{figure}
 	\includegraphics{Threads.pdf}

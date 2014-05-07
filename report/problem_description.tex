@@ -19,7 +19,7 @@ The procedure that we are going the look into is called \texttt{breakDown}. It i
 \Procedure{breakDown}{$bhv,vector$}
     \For{$faceA\gets 0, \#faces$}
         \ForAll{$i \gets pairs(faceA)$}
-            \State $faceB \gets faceIndex(i)$ \Comment{for each pair with faceA, find index of other face}
+            \State $faceB \gets faceIndex(faceA, i)$ \Comment{for each pair with faceA, find index of other face}
             \State $vertices \gets getVertices(faceA)$
             \State $edgesA \gets getEdges(faceA)$
             \State $edgesB \gets getEdges(faceB)$
